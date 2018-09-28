@@ -1,0 +1,12 @@
+comment = _{ "/*" ~ (!"*/" ~ any)* ~ "*/" }
+whitespace = _{ " " }
+
+num = @{ int ~ ("." ~ digit*)? }
+    int = { ("+" | "-")? ~ digit+ }
+    digit = { '0'..'9' }
+
+expr = {
+    num
+}
+
+blispr = { soi ~ expr* ~ eoi }

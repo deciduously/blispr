@@ -1,22 +1,47 @@
+#[macro_use]
+extern crate lazy_static;
 extern crate pest;
 #[macro_use]
 extern crate pest_derive;
 extern crate rustyline;
 
-use pest::Parser;
+use pest::{Pairs, Parser};
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
+use std::fmt;
 
 // First get the calculator working
 
 #[cfg(debug_assertions)]
-const _GRAMMAR: &str = include_str!("grammar.pest");
+const _GRAMMAR: &str = include_str!("simple.pest");
 
 #[derive(Parser)]
-#[grammar = "grammar.pest"]
+#[grammar = "simple.pest"]
 struct BlisprParser;
 
+enum LVAL {
+    LVAL_NUM(i32),
+    LVAL_SYM(String), // &'a str!
+}
+
 // PRINT
+
+impl fmt::Display for LVAL {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::LVAL::*;
+        match self {
+            LVAL_NUM(n) => write!(f, "{}", n),
+            LVAL_SYM(s) => write!(f, "{}", s),
+            _ => write!(f, "Unknown lval type!?"),
+        }
+    }
+}
+
+// READ
+
+fn lval_read<'a>(expr: Pairs<Rule>) -> Box<LVAL> {
+    Box::new(LVAL::LVAL_NUM(1))
+}
 
 //fn print_ast()
 
@@ -39,8 +64,9 @@ fn main() {
                     .next()
                     .unwrap();
                 // match type - for now im leaving out the recursive ones
-                println!("{:?}", ast);
-                break;
+                // ast is a Pair -
+                println!("{:#?}", ast);
+                println!("{}", lval_read(ast));
             }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");
