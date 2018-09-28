@@ -1,0 +1,9 @@
+[package]
+authors = ["deciduously <ben@deciduously.com>"]
+edition = "2018"
+name = "blispr"
+version = "0.0.1"
+[dependencies]
+pest = "1.0"
+pest_derive = "1.0"
+rustyline = "2.1"
