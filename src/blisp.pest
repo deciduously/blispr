@@ -5,8 +5,17 @@ num = @{ int ~ ("." ~ digit*)? }
     int = { ("+" | "-")? ~ digit+ }
     digit = { '0'..'9' }
 
+symbol = @{ "+" | "-" | "*" | "/" | "add" | "sub" | "mul" | "div" }
+
+sexpr = { "(" ~ expr* ~ ")" }
+
+qexpr = { "'(" ~ expr* ~ ")" }
+
 expr = {
     num
+    | symbol
+    | sexpr
+    | qexpr
 }
 
 blispr = { soi ~ expr* ~ eoi }

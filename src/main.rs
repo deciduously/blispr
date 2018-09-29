@@ -1,11 +1,9 @@
-#[macro_use]
-extern crate lazy_static;
 extern crate pest;
 #[macro_use]
 extern crate pest_derive;
 extern crate rustyline;
 
-use pest::{Pairs, Parser};
+use pest::{iterators::Pair, Parser};
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use std::fmt;
@@ -13,34 +11,91 @@ use std::fmt;
 // First get the calculator working
 
 #[cfg(debug_assertions)]
-const _GRAMMAR: &str = include_str!("simple.pest");
+const _GRAMMAR: &str = include_str!("blisp.pest");
 
 #[derive(Parser)]
-#[grammar = "simple.pest"]
+#[grammar = "blisp.pest"]
 struct BlisprParser;
 
-enum LVAL {
-    LVAL_NUM(i32),
-    LVAL_SYM(String), // &'a str!
+enum Lval {
+    Err(String),
+    Num(i64),
+    Sym(String), // &'a str?
+    // TODO Shoudl this be a VecDeque or a LinkedList?
+    Sexpr(Vec<Box<Lval>>),
+    Qexpr(Vec<Box<Lval>>),
+    Blispr(Vec<Box<Lval>>),
 }
 
 // PRINT
 
-impl fmt::Display for LVAL {
+impl fmt::Display for Lval {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use self::LVAL::*;
         match self {
-            LVAL_NUM(n) => write!(f, "{}", n),
-            LVAL_SYM(s) => write!(f, "{}", s),
-            _ => write!(f, "Unknown lval type!?"),
+            Lval::Err(e) => write!(f, "Error: {}", e),
+            Lval::Num(n) => write!(f, "{}", n),
+            Lval::Sym(s) => write!(f, "{}", s),
+            Lval::Sexpr(cell) => write!(f, "({})", lval_expr_print(cell)),
+            Lval::Qexpr(cell) => write!(f, "'({})", lval_expr_print(cell)),
+            Lval::Blispr(cell) => write!(f, "{}", lval_expr_print(cell)),
         }
     }
 }
 
+fn lval_expr_print(cell: &[Box<Lval>]) -> String {
+    let mut ret = String::new();
+    for i in 0..cell.len() {
+        ret.push_str(&format!("{}", cell[i]));
+        if i < cell.len() - 1 {
+            ret.push_str(" ");
+        }
+    }
+    ret
+}
+
 // READ
 
-fn lval_read<'a>(expr: Pairs<Rule>) -> Box<LVAL> {
-    Box::new(LVAL::LVAL_NUM(1))
+fn lval_read(parsed: Pair<Rule>) -> Box<Lval> {
+    match parsed.as_rule() {
+        // I think I've now got an iterator over the exprs in the blisp
+        Rule::blispr => {
+            //println!("Making toplevel!");
+            let mut ret = Vec::new();
+            for child in parsed.into_inner() {
+                ret.push(lval_read(child));
+            }
+            Box::new(Lval::Blispr(ret))
+        }
+        Rule::expr => lval_read(parsed.into_inner().next().unwrap()),
+        Rule::sexpr => {
+            //println!("making sexpr!");
+            let mut ret = Vec::new();
+            for child in parsed.into_inner() {
+                ret.push(lval_read(child));
+            }
+            Box::new(Lval::Sexpr(ret))
+        }
+        Rule::qexpr => {
+            //println!("making qexpr!");
+            let mut ret = Vec::new();
+            for child in parsed.into_inner() {
+                ret.push(lval_read(child));
+            }
+            Box::new(Lval::Qexpr(ret))
+        }
+        Rule::num => {
+            let num = parsed.as_str().parse::<i64>().unwrap();
+            //println!("int | digit: {}", num);
+            Box::new(Lval::Num(num))
+        }
+        Rule::symbol => {
+            let sym = parsed.as_str();
+            //println!("symbol: {}", sym);
+            Box::new(Lval::Sym(sym.into()))
+        }
+        Rule::comment | Rule::whitespace => unimplemented!(),
+        Rule::int | Rule::digit => unimplemented!(), // should never hit - num will cover it?
+    }
 }
 
 //fn print_ast()
@@ -63,9 +118,7 @@ fn main() {
                     .expect("Gibberish!  Try some real blispr next time")
                     .next()
                     .unwrap();
-                // match type - for now im leaving out the recursive ones
-                // ast is a Pair -
-                println!("{:#?}", ast);
+                //println!("{:#?}", ast.into_inner());
                 println!("{}", lval_read(ast));
             }
             Err(ReadlineError::Interrupted) => {
