@@ -105,7 +105,7 @@ fn main() {
     println!("Press Ctrl-C or Ctrl-D to exit");
 
     let mut rl = Editor::<()>::new();
-    if rl.load_history("history.txt").is_err() {
+    if rl.load_history("./.blisp-history.txt").is_err() {
         println!("No history found.");
     }
 
@@ -118,7 +118,6 @@ fn main() {
                     .expect("Gibberish!  Try some real blispr next time")
                     .next()
                     .unwrap();
-                //println!("{:#?}", ast.into_inner());
                 println!("{}", lval_read(ast));
             }
             Err(ReadlineError::Interrupted) => {
@@ -135,5 +134,5 @@ fn main() {
             }
         }
     }
-    rl.save_history("history.txt").unwrap();
+    rl.save_history("./.blisp-history.txt").unwrap();
 }

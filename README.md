@@ -8,4 +8,6 @@ It's [blisp](https://github.com/deciduously/blisp), but in Rust!   Blispr.
 
 ## Usage
 
-`cargo run`
+`cargo run`.
+
+It uses `rustyline` as a readline alternative which will save history to `./.blisp-history.txt`.
