@@ -17,6 +17,7 @@ const _GRAMMAR: &str = include_str!("blisp.pest");
 #[grammar = "blisp.pest"]
 struct BlisprParser;
 
+#[derive(Clone)]
 enum Lval {
     Err(String),
     Num(i64),
@@ -57,7 +58,6 @@ fn lval_expr_print(cell: &[Box<Lval>]) -> String {
 
 fn lval_read(parsed: Pair<Rule>) -> Box<Lval> {
     match parsed.as_rule() {
-        // I think I've now got an iterator over the exprs in the blisp
         Rule::blispr => {
             //println!("Making toplevel!");
             let mut ret = Vec::new();
@@ -98,7 +98,59 @@ fn lval_read(parsed: Pair<Rule>) -> Box<Lval> {
     }
 }
 
-//fn print_ast()
+// EVAL
+
+fn builtin(v: &Box<Lval>, func: &str) -> Box<Lval> {
+    unimplemented!()
+}
+
+fn lval_eval_sexpr(v: &mut Box<Lval>) -> &mut Box<Lval> {
+    // Don't be afraid to clone and drop the old one.Err
+    // Look at the C lval_add and stuff like that
+    match **v {
+        Lval::Sexpr(ref mut cells) => {
+            // First, evaluate all the cells inside
+            let length = cells.len();
+            for i in 0..length {
+                let child = cells[i].clone();
+                cells[i] = *lval_eval(&mut child);
+            };
+
+            // Error checking
+            // if any is an error, return an Lval::Err
+            for i in 0..length {
+                match *cells[i] {
+                    Lval::Err(s) => return &mut Box::new(Lval::Err(s)),
+                    _ => continue,
+                }
+            }
+        
+            if length == 0 {
+                // Empty expression
+                &mut Box::new(*v.clone())
+            } else if length == 1 {
+                // Single expression
+                &mut cells[0].clone()
+            } else {
+                // Function call
+                // Ensure the first element is a Symbol
+                let lfn = *cells[0].clone();
+                match lfn {
+                    Lval::Sym(s) => &mut builtin(&v, &s),
+                    _ => return &mut Box::new(Lval::Err("S-expression does not start with symbol!".into())),
+                }
+            }
+        }
+        _ => return &mut Box::new(Lval::Err("lval_eval_sexpr called on something that's not a sexpr!  Why you gotta do me like that".into())),
+    }
+}
+
+fn lval_eval(v: &mut Box<Lval>) -> &mut Box<Lval> {
+    match **v {
+        Lval::Sexpr(_) => lval_eval_sexpr(&mut v),
+        _ => v,
+    }
+}
 
 fn main() {
     println!("Blispr v0.0.1");
@@ -115,10 +167,10 @@ fn main() {
             Ok(line) => {
                 rl.add_history_entry(line.as_ref());
                 let ast = BlisprParser::parse(Rule::blispr, &line)
-                    .expect("Gibberish!  Try some real blispr next time")
+                    .expect("Syntax error!")
                     .next()
                     .unwrap();
-                println!("{}", lval_read(ast));
+                println!("{}", lval_eval(&mut lval_read(ast)));
             }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");

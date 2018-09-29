@@ -11,11 +11,6 @@ sexpr = { "(" ~ expr* ~ ")" }
 
 qexpr = { "'(" ~ expr* ~ ")" }
 
-expr = {
-    num
-    | symbol
-    | sexpr
-    | qexpr
-}
+expr = { num | symbol | sexpr | qexpr }
 
 blispr = { soi ~ expr* ~ eoi }
