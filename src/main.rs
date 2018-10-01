@@ -8,8 +8,6 @@ use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use std::fmt;
 
-// First get the calculator working
-
 #[cfg(debug_assertions)]
 const _GRAMMAR: &str = include_str!("blisp.pest");
 
@@ -80,6 +78,18 @@ fn lval_add<'a>(v: Box<Lval<'a>>, x: Box<Lval<'a>>) -> Box<Lval<'a>> {
     }
 }
 
+// Extract single element of sexpr at index i 
+fn lval_pop<'a>(v: &mut Box<Lval<'a>>, i: usize) -> Box<Lval<'a>> {
+    match **v {
+        Lval::Sexpr(ref mut children) => {
+            let ret = (&children[i]).clone();
+            children.remove(i);
+            ret
+        }
+        _ => lval_err("Cannot pop from a non-sexpr lval!")
+    }
+}
+
 // PRINT
 
 impl<'a> fmt::Display for Lval<'a> {
@@ -109,6 +119,7 @@ fn lval_expr_print(cell: &[Box<Lval>]) -> String {
 // READ
 
 fn lval_read(parsed: Pair<Rule>) -> Box<Lval> {
+    // TODO skip brackets and such
     match parsed.as_rule() {
         Rule::blispr => {
             let mut ret = lval_blispr();
@@ -145,26 +156,38 @@ fn lval_read(parsed: Pair<Rule>) -> Box<Lval> {
 
 // EVAL
 
-fn builtin_op<'a>(v: Box<Lval>, func: &str) -> Box<Lval<'a>> {
-    // YOu need to do lval_pop()
-    match func {
-        "+" | "add" => {
-            //match v {
-                //Lval::Num()
-            //}
-            unimplemented!()
-        },
-        "-" | "sub" => {unimplemented!()},
-        "*" | "mul" => {unimplemented!()},
-        "/" | "div" => {unimplemented!()},
-        "min" => {unimplemented!()},
-        "max" => {unimplemented!()},
-        _ => {
-            // This should never get hit
-            // builtin() took care of it
-            lval_err("Unknown operator!")
+fn builtin_op<'a>(mut v: Box<Lval>, func: &str) -> Box<Lval<'a>> {
+    // first, ensure all args are numbers
+    // TODO
+
+    let x = lval_pop(&mut v, 0);
+    // If no args given and we're doing subtraction, perform unary negation
+    // TODO
+
+    // consume the children until empty
+    
+    while (*v).0.len() > 0 {
+        let y = lval_pop(v, 0);
+        match func {
+            "+" | "add" => {
+                //match v {
+                    //Lval::Num()
+                //}
+                unimplemented!()
+            },
+            "-" | "sub" => {unimplemented!()},
+            "*" | "mul" => {unimplemented!()},
+            "/" | "div" => {unimplemented!()},
+            "min" => {unimplemented!()},
+            "max" => {unimplemented!()},
+            _ => {
+                // This should never get hit
+                // builtin() took care of it
+                lval_err("Unknown operator!")
+            }
         }
     }
+    x
 }
 
 fn builtin<'a>(v: Box<Lval>, func: &str) -> Box<Lval<'a>> {
