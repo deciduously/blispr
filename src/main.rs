@@ -145,8 +145,33 @@ fn lval_read(parsed: Pair<Rule>) -> Box<Lval> {
 
 // EVAL
 
-fn builtin<'a>(v: &Box<Lval>, func: &str) -> Box<Lval<'a>> {
-    unimplemented!()
+fn builtin_op<'a>(v: Box<Lval>, func: &str) -> Box<Lval<'a>> {
+    // YOu need to do lval_pop()
+    match func {
+        "+" | "add" => {
+            //match v {
+                //Lval::Num()
+            //}
+            unimplemented!()
+        },
+        "-" | "sub" => {unimplemented!()},
+        "*" | "mul" => {unimplemented!()},
+        "/" | "div" => {unimplemented!()},
+        "min" => {unimplemented!()},
+        "max" => {unimplemented!()},
+        _ => {
+            // This should never get hit
+            // builtin() took care of it
+            lval_err("Unknown operator!")
+        }
+    }
+}
+
+fn builtin<'a>(v: Box<Lval>, func: &str) -> Box<Lval<'a>> {
+    match func {
+        "+" | "-" | "*" | "/" | "add" | "sub" | "mul" | "div" | "max" | "min" => builtin_op(v, func),
+        _ => lval_err("Unknown function!"),
+    }
 }
 
 fn lval_eval_sexpr(v: Box<Lval>) -> Box<Lval> {
@@ -181,7 +206,7 @@ fn lval_eval_sexpr(v: Box<Lval>) -> Box<Lval> {
                 // Ensure the first element is a Symbol
                 let lfn = *cells[0].clone();
                 match lfn {
-                    Lval::Sym(s) => builtin(&v, &s),
+                    Lval::Sym(s) => builtin(v, &s),
                     _ => return lval_err("S-expression does not start with symbol!".into()),
                 }
             }
