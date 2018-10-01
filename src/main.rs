@@ -22,14 +22,14 @@ struct BlisprParser;
 type LvalChildren<'a> = Vec<Box<Lval<'a>>>;
 
 // The main type - all possible Blispr values
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 enum Lval<'a> {
     Err(&'a str),
     Num(i64),
     Sym(&'a str),
-    Sexpr(&'a LvalChildren<'a>),
-    Qexpr(&'a LvalChildren<'a>),
-    Blispr(&'a LvalChildren<'a>),
+    Sexpr(LvalChildren<'a>),
+    Qexpr(LvalChildren<'a>),
+    Blispr(LvalChildren<'a>),
 }
 
 // Constructors
@@ -52,27 +52,30 @@ fn lval_sym<'a>(s: &'a str) -> Box<Lval<'a>> {
 }
 
 fn lval_sexpr<'a>() -> Box<Lval<'a>> {
-    Box::new(Lval::Sexpr(&Vec::new()))
+    Box::new(Lval::Sexpr(Vec::new()))
 }
 
 fn lval_qexpr<'a>() -> Box<Lval<'a>> {
-    Box::new(Lval::Qexpr(&Vec::new()))
+    Box::new(Lval::Qexpr(Vec::new()))
 }
 
 fn lval_blispr<'a>() -> Box<Lval<'a>> {
-    Box::new(Lval::Blispr(&Vec::new()))
+    Box::new(Lval::Blispr(Vec::new()))
 }
 
 // Manipluating children
 
-// Add x to v
-fn lval_add(v: &mut Box<Lval>, x: Box<Lval>) {
-    match **v {
+// Add lval x to lval::sexpr v
+// Takes ownership of both which drops them, and returns a brand new Box<Lval> instead of mutating v
+fn lval_add<'a>(v: Box<Lval<'a>>, x: Box<Lval<'a>>) -> Box<Lval<'a>> {
+    match *v {
         Lval::Err(_) | Lval::Num(_) | Lval::Sym(_) => {
             panic!("Tried to add a child to a non-containing lval!")
         }
-        Lval::Sexpr(mut children) | Lval::Qexpr(mut children) | Lval::Blispr(mut children) => {
-            children.push(x)
+        Lval::Sexpr(ref children) | Lval::Qexpr(ref children) | Lval::Blispr(ref children) => {
+            let mut new_children = children.clone();
+            new_children.push(x);
+            Box::new(Lval::Sexpr(new_children))
         }
     }
 }
@@ -108,39 +111,32 @@ fn lval_expr_print(cell: &[Box<Lval>]) -> String {
 fn lval_read(parsed: Pair<Rule>) -> Box<Lval> {
     match parsed.as_rule() {
         Rule::blispr => {
-            //println!("Making toplevel!");
-            let mut ret = Vec::new();
+            let mut ret = lval_blispr();
             for child in parsed.into_inner() {
-                ret.push(lval_read(child));
+                ret = lval_add(ret, lval_read(child));
             }
-            Box::new(Lval::Blispr(&ret))
+            ret
         }
         Rule::expr => lval_read(parsed.into_inner().next().unwrap()),
         Rule::sexpr => {
-            //println!("making sexpr!");
-            let mut ret = Vec::new();
+            let mut ret = lval_sexpr();
             for child in parsed.into_inner() {
-                ret.push(lval_read(child));
+                ret = lval_add(ret, lval_read(child));
             }
-            Box::new(Lval::Sexpr(&ret))
+            ret
         }
         Rule::qexpr => {
-            //println!("making qexpr!");
-            let mut ret = Vec::new();
+            let mut ret = lval_qexpr();
             for child in parsed.into_inner() {
-                ret.push(lval_read(child));
+                ret = lval_add(ret, lval_read(child));
             }
-            Box::new(Lval::Qexpr(&ret))
+            ret
         }
         Rule::num => {
-            let num = parsed.as_str().parse::<i64>().unwrap();
-            //println!("int | digit: {}", num);
-            Box::new(Lval::Num(num))
+            lval_num(parsed.as_str().parse::<i64>().unwrap())
         }
         Rule::symbol => {
-            let sym = parsed.as_str();
-            //println!("symbol: {}", sym);
-            Box::new(Lval::Sym(sym.into()))
+            lval_sym(parsed.as_str())
         }
         Rule::comment | Rule::whitespace => unimplemented!(),
         Rule::int | Rule::digit => unimplemented!(), // should never hit - num will cover it?
@@ -156,12 +152,12 @@ fn builtin<'a>(v: &Box<Lval>, func: &str) -> Box<Lval<'a>> {
 fn lval_eval_sexpr(v: Box<Lval>) -> Box<Lval> {
     let mut curr = v.clone();
     match *curr {
-        Lval::Sexpr(mut cells) => {
+        Lval::Sexpr(ref mut cells) => {
             // First, evaluate all the cells inside
             let length = cells.len();
             for i in 0..length {
-                let child = cells[i].clone();
-                curr = Box::new(Lval::Sexpr(&lval_eval(child)));
+                // how can I avoid the clone?
+                cells[i] = lval_eval(cells[i].clone())
             };
 
             // Error checking
@@ -169,7 +165,7 @@ fn lval_eval_sexpr(v: Box<Lval>) -> Box<Lval> {
             for i in 0..length {
                 let res = *cells[i].clone();
                 match res {
-                    Lval::Err(s) => return Box::new(Lval::Err(s)),
+                    Lval::Err(s) => return lval_err(s),
                     _ => continue,
                 }
             }
@@ -186,11 +182,11 @@ fn lval_eval_sexpr(v: Box<Lval>) -> Box<Lval> {
                 let lfn = *cells[0].clone();
                 match lfn {
                     Lval::Sym(s) => builtin(&v, &s),
-                    _ => return Box::new(Lval::Err("S-expression does not start with symbol!".into())),
+                    _ => return lval_err("S-expression does not start with symbol!".into()),
                 }
             }
         }
-        _ => return Box::new(Lval::Err("lval_eval_sexpr called on something that's not a sexpr!  Why you gotta do me like that".into())),
+        _ => return lval_err("lval_eval_sexpr called on something that's not a sexpr!  Why you gotta do me like that".into()),
     }
 }
 
