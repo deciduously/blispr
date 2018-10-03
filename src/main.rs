@@ -155,7 +155,7 @@ fn lval_read(parsed: Pair<Rule>) -> Box<Lval> {
 fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
     // TODO check all args are numbers first?
 
-    let mut child_count = 0;
+    let mut child_count;
     match *v {
         Lval::Sexpr(ref children) => {
             child_count = children.len();
@@ -208,7 +208,7 @@ fn builtin<'a>(v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
 
 fn lval_eval_sexpr(mut v: Box<Lval>) -> Box<Lval> {
     // This clone is a problem
-    let mut child_count = 0;
+    let child_count;
     match *v {
         Lval::Sexpr(ref mut cells) => {
             // First, evaluate all the cells inside
