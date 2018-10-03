@@ -65,7 +65,7 @@ fn lval_blispr<'a>() -> Box<Lval<'a>> {
 
 // Add lval x to lval::sexpr v
 // Takes ownership of both which drops them, and returns a brand new Box<Lval> instead of mutating v
-fn lval_add<'a>(v: Box<Lval<'a>>, x: Box<Lval<'a>>) -> Box<Lval<'a>> {
+fn lval_add<'a>(v: &Lval<'a>, x: Box<Lval<'a>>) -> Box<Lval<'a>> {
     match *v {
         Lval::Err(_) | Lval::Num(_) | Lval::Sym(_) => {
             panic!("Tried to add a child to a non-containing lval!")
@@ -79,8 +79,8 @@ fn lval_add<'a>(v: Box<Lval<'a>>, x: Box<Lval<'a>>) -> Box<Lval<'a>> {
 }
 
 // Extract single element of sexpr at index i
-fn lval_pop<'a>(v: &mut Box<Lval<'a>>, i: usize) -> Box<Lval<'a>> {
-    match **v {
+fn lval_pop<'a>(v: &mut Lval<'a>, i: usize) -> Box<Lval<'a>> {
+    match *v {
         Lval::Sexpr(ref mut children) => {
             let ret = (&children[i]).clone();
             children.remove(i);
@@ -124,7 +124,7 @@ fn lval_read(parsed: Pair<Rule>) -> Box<Lval> {
         Rule::blispr => {
             let mut ret = lval_blispr();
             for child in parsed.into_inner() {
-                ret = lval_add(ret, lval_read(child));
+                ret = lval_add(&ret, lval_read(child));
             }
             ret
         }
@@ -132,14 +132,14 @@ fn lval_read(parsed: Pair<Rule>) -> Box<Lval> {
         Rule::sexpr => {
             let mut ret = lval_sexpr();
             for child in parsed.into_inner() {
-                ret = lval_add(ret, lval_read(child));
+                ret = lval_add(&ret, lval_read(child));
             }
             ret
         }
         Rule::qexpr => {
             let mut ret = lval_qexpr();
             for child in parsed.into_inner() {
-                ret = lval_add(ret, lval_read(child));
+                ret = lval_add(&ret, lval_read(child));
             }
             ret
         }
@@ -153,49 +153,48 @@ fn lval_read(parsed: Pair<Rule>) -> Box<Lval> {
 // EVAL
 
 fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
+    // TODO check all args are numbers first?
+
+    let mut child_count = 0;
     match *v {
         Lval::Sexpr(ref children) => {
-            // first, ensure all args are numbers
-            // TODO
-            // We cant call lval_pop() on mut v
-            // because we're inside a bigh match *v
-            // which borrrows immutably!
-            let mut x = lval_pop(&mut v, 0);
-            // If no args given and we're doing subtraction, perform unary negation
-            // TODO
-
-            // consume the children until empty
-            // and operate on x
-
-            while children.len() > 0 {
-                let y = lval_pop(&mut v, 0);
-                match func {
-                    "+" | "add" => match *x {
-                        Lval::Num(n) => match *y {
-                            Lval::Num(m) => {
-                                x = lval_num(n + m);
-                                continue;
-                            }
-                            _ => return lval_err("Arg not a number"),
-                        },
-                        _ => return lval_err("Arg not a number"),
-                    },
-                    "-" | "sub" => unimplemented!(),
-                    "*" | "mul" => unimplemented!(),
-                    "/" | "div" => unimplemented!(),
-                    "min" => unimplemented!(),
-                    "max" => unimplemented!(),
-                    _ => {
-                        // This should never get hit
-                        // builtin() took care of it
-                        return lval_err("Unknown operator!");
-                    }
-                }
-            }
-            x
+            child_count = children.len();
         }
-        _ => v,
+        _ => return v,
     }
+    let mut x = lval_pop(&mut v, 0);
+    // If no args given and we're doing subtraction, perform unary negation
+    // TODO
+
+    // consume the children until empty
+    // and operate on x
+    while child_count > 1 {
+        let y = lval_pop(&mut v, 0);
+        child_count -= 1;
+        match func {
+            "+" | "add" => match *x {
+                Lval::Num(x_num) => match *y {
+                    Lval::Num(y_num) => {
+                        x = lval_num(x_num + y_num);
+                        continue;
+                    }
+                    _ => return lval_err("Arg not a number"),
+                },
+                _ => return lval_err("Arg not a number"),
+            },
+            "-" | "sub" => unimplemented!(),
+            "*" | "mul" => unimplemented!(),
+            "/" | "div" => unimplemented!(),
+            "min" => unimplemented!(),
+            "max" => unimplemented!(),
+            _ => {
+                // This should never get hit
+                // builtin() took care of it
+                return lval_err("Unknown operator!");
+            }
+        }
+    }
+    x
 }
 
 fn builtin<'a>(v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
@@ -208,43 +207,43 @@ fn builtin<'a>(v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
 }
 
 fn lval_eval_sexpr(mut v: Box<Lval>) -> Box<Lval> {
-    let mut curr = v.clone();
-    match *curr {
+    // This clone is a problem
+    let mut child_count = 0;
+    match *v {
         Lval::Sexpr(ref mut cells) => {
             // First, evaluate all the cells inside
-            let length = cells.len();
-            for i in 0..length {
-                // how can I avoid the clone?
+            child_count = cells.len();
+            for i in 0..child_count {
                 cells[i] = lval_eval(cells[i].clone())
             };
 
             // Error checking
             // if any is an error, return an Lval::Err
-            for i in 0..length {
-                let res = *cells[i].clone();
+            for item in cells.iter().take(child_count) {
+                let res = *item.clone();
                 match res {
                     Lval::Err(s) => return lval_err(s),
                     _ => continue,
                 }
             }
-
-            if length == 0 {
-                // Empty expression
-                v
-            } else if length == 1 {
-                // Single expression
-                lval_pop(&mut v, 0)
-            } else {
-                // Function call
-                // Ensure the first element is a Symbol
-                let lfn = lval_pop(&mut v, 0);
-                match *lfn {
-                    Lval::Sym(s) => builtin(v, &s),
-                    _ => return lval_err("S-expression does not start with symbol!".into()),
-                }
-            }
         }
-        _ => return lval_err("lval_eval_sexpr called on something that's not a sexpr!  Why you gotta do me like that".into()),
+        _ => return lval_err("lval_eval_sexpr called on something that's not a sexpr!  Why you gotta do me like that"),
+    }
+
+    if child_count == 0 {
+        // Empty expression
+        v
+    } else if child_count == 1 {
+        // Single expression
+        lval_pop(&mut v, 0)
+    } else {
+        // Function call
+        // Ensure the first element is a Symbol
+        let lfn = lval_pop(&mut v, 0);
+        match *lfn {
+            Lval::Sym(s) => builtin(v, &s),
+            _ => lval_err("S-expression does not start with symbol!"),
+        }
     }
 }
 
