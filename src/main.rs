@@ -5,7 +5,7 @@ extern crate rustyline;
 
 use pest::{iterators::Pair, Parser};
 use rustyline::{error::ReadlineError, Editor};
-use std::fmt;
+use std::{fmt, ops::Add};
 
 #[cfg(debug_assertions)]
 const _GRAMMAR: &str = include_str!("blispr.pest");
@@ -13,6 +13,21 @@ const _GRAMMAR: &str = include_str!("blispr.pest");
 #[derive(Parser)]
 #[grammar = "blispr.pest"]
 struct BlisprParser;
+
+macro_rules! apply_binop {
+    ( $op:ident, $x:ident, $y:ident ) => {
+        match *$x {
+            Lval::Num(x_num) => match *$y {
+                Lval::Num(y_num) => {
+                    $x = lval_num(x_num.$op(y_num));
+                    continue;
+                }
+                _ => return lval_err("Arg not a number"),
+            },
+            _ => return lval_err("Arg not a number"),
+        }
+    };
+}
 
 // The recursive types hold their children in one of these bad boys
 // TODO Should this be a VecDeque or a LinkedList instead?
@@ -172,16 +187,8 @@ fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
         let y = lval_pop(&mut v, 0);
         child_count -= 1;
         match func {
-            "+" | "add" => match *x {
-                Lval::Num(x_num) => match *y {
-                    Lval::Num(y_num) => {
-                        x = lval_num(x_num + y_num);
-                        continue;
-                    }
-                    _ => return lval_err("Arg not a number"),
-                },
-                _ => return lval_err("Arg not a number"),
-            },
+            // write the macro!
+            "+" | "add" => apply_binop!(add, x, y),
             "-" | "sub" => unimplemented!(),
             "*" | "mul" => unimplemented!(),
             "/" | "div" => unimplemented!(),
@@ -207,14 +214,15 @@ fn builtin<'a>(v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
 }
 
 fn lval_eval_sexpr(mut v: Box<Lval>) -> Box<Lval> {
+    // TODO this can really just live in lval_eval
     let child_count;
     match *v {
         Lval::Sexpr(ref mut cells) => {
             // First, evaluate all the cells inside
             child_count = cells.len();
-            for i in 0..child_count {
-                cells[i] = lval_eval(cells[i].clone())
-            };
+            for item in cells.iter_mut().take(child_count) {
+                *item = lval_eval(item.clone())
+            }
 
             // Error checking
             // if any is an error, return an Lval::Err
@@ -226,7 +234,7 @@ fn lval_eval_sexpr(mut v: Box<Lval>) -> Box<Lval> {
                 }
             }
         }
-        _ => return lval_err("lval_eval_sexpr called on something that's not a sexpr!  Why you gotta do me like that"),
+        _ => unreachable!(),
     }
 
     if child_count == 0 {
@@ -270,11 +278,11 @@ fn main() {
         match input {
             Ok(line) => {
                 rl.add_history_entry(line.as_ref());
-                let ast = BlisprParser::parse(Rule::blispr, &line)
+                let parsed = BlisprParser::parse(Rule::blispr, &line)
                     .expect("Syntax error!")
                     .next()
                     .unwrap();
-                println!("{}", lval_eval(lval_read(ast)));
+                println!("{}", lval_eval(lval_read(parsed)));
             }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");

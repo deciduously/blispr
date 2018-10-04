@@ -1,5 +1,5 @@
 COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
-WHITESPACE = _{ " " | "\t" }
+WHITESPACE = _{ " " }
 
 num = @{ int ~ ("." ~ digit*)? }
     int = { ("+" | "-")? ~ digit+ }
