@@ -113,7 +113,7 @@ fn lval_expr_print(cell: &[Box<Lval>]) -> String {
 
 fn is_bracket_or_eoi(parsed: &Pair<Rule>) -> bool {
     if parsed.as_rule() == Rule::EOI {
-        return false;
+        return true;
     }
     let c = parsed.as_str();
     c == "(" || c == ")" || c == "{" || c == "}"
