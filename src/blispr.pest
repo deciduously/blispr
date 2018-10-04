@@ -1,5 +1,5 @@
 COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
-WHITESPACE = _{ " " }
+WHITESPACE = _{ " " | "\t" }
 
 num = @{ int ~ ("." ~ digit*)? }
     int = { ("+" | "-")? ~ digit+ }
@@ -9,8 +9,8 @@ symbol = @{ "+" | "-" | "*" | "/" | "add" | "sub" | "mul" | "div" }
 
 sexpr = { "(" ~ expr* ~ ")" }
 
-qexpr = { "'(" ~ expr* ~ ")" }
+qexpr = { "{" ~ expr* ~ "}" }
 
 expr = { num | symbol | sexpr | qexpr }
 
-blispr = _{ SOI ~ expr* ~ EOI }
+blispr = { SOI ~ expr* ~ EOI }

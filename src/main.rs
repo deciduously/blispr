@@ -4,8 +4,7 @@ extern crate pest_derive;
 extern crate rustyline;
 
 use pest::{iterators::Pair, Parser};
-use rustyline::error::ReadlineError;
-use rustyline::Editor;
+use rustyline::{error::ReadlineError, Editor};
 use std::fmt;
 
 #[cfg(debug_assertions)]
@@ -27,7 +26,6 @@ enum Lval<'a> {
     Sym(&'a str),
     Sexpr(LvalChildren<'a>),
     Qexpr(LvalChildren<'a>),
-    Blispr(LvalChildren<'a>),
 }
 
 // Constructors
@@ -57,10 +55,6 @@ fn lval_qexpr<'a>() -> Box<Lval<'a>> {
     Box::new(Lval::Qexpr(Vec::new()))
 }
 
-fn lval_blispr<'a>() -> Box<Lval<'a>> {
-    Box::new(Lval::Blispr(Vec::new()))
-}
-
 // Manipluating children
 
 // Add lval x to lval::sexpr v
@@ -70,7 +64,7 @@ fn lval_add<'a>(v: &Lval<'a>, x: Box<Lval<'a>>) -> Box<Lval<'a>> {
         Lval::Err(_) | Lval::Num(_) | Lval::Sym(_) => {
             panic!("Tried to add a child to a non-containing lval!")
         }
-        Lval::Sexpr(ref children) | Lval::Qexpr(ref children) | Lval::Blispr(ref children) => {
+        Lval::Sexpr(ref children) | Lval::Qexpr(ref children) => {
             let mut new_children = children.clone();
             new_children.push(x);
             Box::new(Lval::Sexpr(new_children))
@@ -99,8 +93,7 @@ impl<'a> fmt::Display for Lval<'a> {
             Lval::Num(n) => write!(f, "{}", n),
             Lval::Sym(s) => write!(f, "{}", s),
             Lval::Sexpr(cell) => write!(f, "({})", lval_expr_print(cell)),
-            Lval::Qexpr(cell) => write!(f, "'({})", lval_expr_print(cell)),
-            Lval::Blispr(cell) => write!(f, "{}", lval_expr_print(cell)),
+            Lval::Qexpr(cell) => write!(f, "{{{}}}", lval_expr_print(cell)),
         }
     }
 }
@@ -118,21 +111,36 @@ fn lval_expr_print(cell: &[Box<Lval>]) -> String {
 
 // READ
 
+fn is_bracket_or_eoi(parsed: &Pair<Rule>) -> bool {
+    if parsed.as_rule() == Rule::EOI {
+        return false;
+    }
+    let c = parsed.as_str();
+    c == "(" || c == ")" || c == "{" || c == "}"
+}
+
 fn lval_read(parsed: Pair<Rule>) -> Box<Lval> {
     // TODO skip brackets and such
     match parsed.as_rule() {
         Rule::blispr => {
-            // TODO look at into_inner/into_span?
-            let mut ret = lval_blispr();
+            let mut ret = lval_sexpr();
             for child in parsed.into_inner() {
+                // here is where you skip stuff
+                if is_bracket_or_eoi(&child) {
+                    continue;
+                }
                 ret = lval_add(&ret, lval_read(child));
             }
-            return ret;
+            ret
         }
         Rule::expr => lval_read(parsed.into_inner().next().unwrap()),
         Rule::sexpr => {
+            println!("sexpr");
             let mut ret = lval_sexpr();
             for child in parsed.into_inner() {
+                if is_bracket_or_eoi(&child) {
+                    continue;
+                }
                 ret = lval_add(&ret, lval_read(child));
             }
             ret
@@ -140,15 +148,16 @@ fn lval_read(parsed: Pair<Rule>) -> Box<Lval> {
         Rule::qexpr => {
             let mut ret = lval_qexpr();
             for child in parsed.into_inner() {
+                if is_bracket_or_eoi(&child) {
+                    continue;
+                }
                 ret = lval_add(&ret, lval_read(child));
             }
             ret
         }
         Rule::num => lval_num(parsed.as_str().parse::<i64>().unwrap()),
         Rule::symbol => lval_sym(parsed.as_str()),
-        Rule::COMMENT | Rule::WHITESPACE => lval_read(parsed.into_inner().next().unwrap()),
-        Rule::EOI => lval_sym("End of input"), // WHAT DO I DO HERE??
-        Rule::int | Rule::digit => unreachable!(), // num will cover it
+        _ => unreachable!(),
     }
 }
 
@@ -213,7 +222,6 @@ fn lval_eval_sexpr(mut v: Box<Lval>) -> Box<Lval> {
     let child_count;
     match *v {
         Lval::Sexpr(ref mut cells) => {
-            
             // First, evaluate all the cells inside
             child_count = cells.len();
             for i in 0..child_count {
@@ -245,7 +253,10 @@ fn lval_eval_sexpr(mut v: Box<Lval>) -> Box<Lval> {
         let lfn = lval_pop(&mut v, 0);
         match *lfn {
             Lval::Sym(s) => builtin(v, &s),
-            _ => lval_err("S-expression does not start with symbol!"),
+            _ => {
+                println!("{}", *lfn);
+                lval_err("S-expression does not start with symbol")
+            }
         }
     }
 }
@@ -275,7 +286,7 @@ fn main() {
                     .expect("Syntax error!")
                     .next()
                     .unwrap();
-                println!("{}", lval_eval(lval_read(ast)));
+                println!("{}", lval_read(ast));
             }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");
