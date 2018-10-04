@@ -9,10 +9,10 @@ use rustyline::Editor;
 use std::fmt;
 
 #[cfg(debug_assertions)]
-const _GRAMMAR: &str = include_str!("blisp.pest");
+const _GRAMMAR: &str = include_str!("blispr.pest");
 
 #[derive(Parser)]
-#[grammar = "blisp.pest"]
+#[grammar = "blispr.pest"]
 struct BlisprParser;
 
 // The recursive types hold their children in one of these bad boys
@@ -122,11 +122,12 @@ fn lval_read(parsed: Pair<Rule>) -> Box<Lval> {
     // TODO skip brackets and such
     match parsed.as_rule() {
         Rule::blispr => {
+            // TODO look at into_inner/into_span?
             let mut ret = lval_blispr();
             for child in parsed.into_inner() {
                 ret = lval_add(&ret, lval_read(child));
             }
-            ret
+            return ret;
         }
         Rule::expr => lval_read(parsed.into_inner().next().unwrap()),
         Rule::sexpr => {
@@ -145,8 +146,9 @@ fn lval_read(parsed: Pair<Rule>) -> Box<Lval> {
         }
         Rule::num => lval_num(parsed.as_str().parse::<i64>().unwrap()),
         Rule::symbol => lval_sym(parsed.as_str()),
-        Rule::comment | Rule::whitespace => unimplemented!(),
-        Rule::int | Rule::digit => unimplemented!(), // should never hit - num will cover it?
+        Rule::COMMENT | Rule::WHITESPACE => lval_read(parsed.into_inner().next().unwrap()),
+        Rule::EOI => lval_sym("End of input"), // WHAT DO I DO HERE??
+        Rule::int | Rule::digit => unreachable!(), // num will cover it
     }
 }
 
@@ -211,6 +213,7 @@ fn lval_eval_sexpr(mut v: Box<Lval>) -> Box<Lval> {
     let child_count;
     match *v {
         Lval::Sexpr(ref mut cells) => {
+            
             // First, evaluate all the cells inside
             child_count = cells.len();
             for i in 0..child_count {

@@ -1,5 +1,5 @@
-comment = _{ "/*" ~ (!"*/" ~ any)* ~ "*/" }
-whitespace = _{ " " }
+COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
+WHITESPACE = _{ " " }
 
 num = @{ int ~ ("." ~ digit*)? }
     int = { ("+" | "-")? ~ digit+ }
@@ -13,4 +13,4 @@ qexpr = { "'(" ~ expr* ~ ")" }
 
 expr = { num | symbol | sexpr | qexpr }
 
-blispr = { soi ~ expr* ~ eoi }
+blispr = _{ SOI ~ expr* ~ EOI }
