@@ -122,7 +122,7 @@ fn is_bracket_or_eoi(parsed: &Pair<Rule>) -> bool {
 fn lval_read(parsed: Pair<Rule>) -> Box<Lval> {
     // TODO skip brackets and such
     match parsed.as_rule() {
-        Rule::blispr => {
+        Rule::blispr | Rule::sexpr => {
             let mut ret = lval_sexpr();
             for child in parsed.into_inner() {
                 // here is where you skip stuff
@@ -134,17 +134,6 @@ fn lval_read(parsed: Pair<Rule>) -> Box<Lval> {
             ret
         }
         Rule::expr => lval_read(parsed.into_inner().next().unwrap()),
-        Rule::sexpr => {
-            println!("sexpr");
-            let mut ret = lval_sexpr();
-            for child in parsed.into_inner() {
-                if is_bracket_or_eoi(&child) {
-                    continue;
-                }
-                ret = lval_add(&ret, lval_read(child));
-            }
-            ret
-        }
         Rule::qexpr => {
             let mut ret = lval_qexpr();
             for child in parsed.into_inner() {
@@ -218,7 +207,6 @@ fn builtin<'a>(v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
 }
 
 fn lval_eval_sexpr(mut v: Box<Lval>) -> Box<Lval> {
-    // This clone is a problem
     let child_count;
     match *v {
         Lval::Sexpr(ref mut cells) => {
@@ -286,7 +274,7 @@ fn main() {
                     .expect("Syntax error!")
                     .next()
                     .unwrap();
-                println!("{}", lval_read(ast));
+                println!("{}", lval_eval(lval_read(ast)));
             }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");
