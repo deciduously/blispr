@@ -7,7 +7,7 @@ use pest::{iterators::Pair, Parser};
 use rustyline::{error::ReadlineError, Editor};
 use std::{
     fmt,
-    ops::{Add, Div, Mul, Sub},
+    ops::{Add, Div, Mul, Rem, Sub},
 };
 
 #[cfg(debug_assertions)]
@@ -209,6 +209,7 @@ fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
                     apply_binop!(div, x, y)
                 }
             }
+            "%" | "rem" => apply_binop!(rem, x, y),
             "min" => {
                 let x_num = lval_num_inner!(x);
                 let y_num = lval_num_inner!(y);
@@ -235,7 +236,7 @@ fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
 
 fn builtin<'a>(v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
     match func {
-        "+" | "-" | "*" | "/" | "add" | "sub" | "mul" | "div" | "max" | "min" => {
+        "+" | "-" | "*" | "/" | "%" | "add" | "sub" | "mul" | "div" | "rem" | "max" | "min" => {
             builtin_op(v, func)
         }
         _ => lval_err("Unknown function!"),

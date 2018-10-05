@@ -2,11 +2,7 @@
 
 It's [blisp](https://github.com/deciduously/blisp), but in Rust!   Blispr.
 
-This is a rewrite of the Lisp built in the book [Build Your Own Lisp](http://www.buildyourownlisp.com/) in Rust.  The end product is superficially similar, but there are some places where I have either by choice or necessity implemented something differently.
-
-The most significant differnence at this stage is my use of the more Rust-friendly [Pest](https://pest.rs) instead of the book author's own [mpc](https://github.com/orangeduck/mpc).  I may try to write an alternate branch using that parser to compare.  The resulting code is pretty similar but `mpc` specifies the grammar inside the source file whereas `pest` keeps it in a separate `src/blispr.pest`.
-
-Most other differences stem from this library choice as well, making this library different enough that I can't accurately call this a port of that tutorial.  It's just the world's latest unnecessary-est lisp!
+This is a rewrite of the Lisp built in the book [Build Your Own Lisp](http://www.buildyourownlisp.com/) in Rust.  The end product is superficially similar, but there are some places where I have either by choice or necessity implemented something differently - different enough that I can't accurately call this a port of that tutorial.  It's just the world's latest unnecessary-est lisp!
 
 ## Requirements
 
@@ -32,6 +28,6 @@ It uses `rustyline` as a readline alternative which will save history to `./.bli
 
 ## Currently implemented
 
-* Operators: `+` | `add`, `-` | `sub`, `*` | `mul`, `/` | `div`, `max`, `min`
+* Operators: `+` | `add`, `-` | `sub`, `*` | `mul`, `/` | `div`, '%' | `rem`, `max`, `min`
 
 ...that's it!
