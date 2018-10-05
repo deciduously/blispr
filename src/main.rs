@@ -5,7 +5,10 @@ extern crate rustyline;
 
 use pest::{iterators::Pair, Parser};
 use rustyline::{error::ReadlineError, Editor};
-use std::{fmt, ops::Add};
+use std::{
+    fmt,
+    ops::{Add, Div, Mul, Sub},
+};
 
 #[cfg(debug_assertions)]
 const _GRAMMAR: &str = include_str!("blispr.pest");
@@ -22,9 +25,18 @@ macro_rules! apply_binop {
                     $x = lval_num(x_num.$op(y_num));
                     continue;
                 }
-                _ => return lval_err("Arg not a number"),
+                _ => return lval_err("Not a number"), // TODO error type
             },
-            _ => return lval_err("Arg not a number"),
+            _ => return lval_err("Not a number"),
+        }
+    };
+}
+
+macro_rules! lval_num_inner {
+    ( $lval_n:ident ) => {
+        match *$lval_n {
+            Lval::Num(n_num) => n_num,
+            _ => return lval_err("Not a number"),
         }
     };
 }
@@ -187,18 +199,35 @@ fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
         let y = lval_pop(&mut v, 0);
         child_count -= 1;
         match func {
-            // write the macro!
             "+" | "add" => apply_binop!(add, x, y),
-            "-" | "sub" => unimplemented!(),
-            "*" | "mul" => unimplemented!(),
-            "/" | "div" => unimplemented!(),
-            "min" => unimplemented!(),
-            "max" => unimplemented!(),
-            _ => {
-                // This should never get hit
-                // builtin() took care of it
-                return lval_err("Unknown operator!");
+            "-" | "sub" => apply_binop!(sub, x, y),
+            "*" | "mul" => apply_binop!(mul, x, y),
+            "/" | "div" => {
+                if lval_num_inner!(y) == 0 {
+                    return lval_err("Divide by zero!");
+                } else {
+                    apply_binop!(div, x, y)
+                }
             }
+            "min" => {
+                let x_num = lval_num_inner!(x);
+                let y_num = lval_num_inner!(y);
+                if x_num > y_num {
+                    x = lval_num(x_num);
+                } else {
+                    x = lval_num(y_num);
+                };
+            }
+            "max" => {
+                let x_num = lval_num_inner!(x);
+                let y_num = lval_num_inner!(y);
+                if x_num < y_num {
+                    x = lval_num(x_num);
+                } else {
+                    x = lval_num(y_num);
+                };
+            }
+            _ => unreachable!(), // builtin() took care of it
         }
     }
     x
@@ -213,8 +242,7 @@ fn builtin<'a>(v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
     }
 }
 
-fn lval_eval_sexpr(mut v: Box<Lval>) -> Box<Lval> {
-    // TODO this can really just live in lval_eval
+fn lval_eval(mut v: Box<Lval>) -> Box<Lval> {
     let child_count;
     match *v {
         Lval::Sexpr(ref mut cells) => {
@@ -234,11 +262,12 @@ fn lval_eval_sexpr(mut v: Box<Lval>) -> Box<Lval> {
                 }
             }
         }
-        _ => unreachable!(),
+        // if it's not a sexpr, we're done
+        _ => return v,
     }
 
     if child_count == 0 {
-        // Empty expression
+        // It was a sexpr, but it was empty
         v
     } else if child_count == 1 {
         // Single expression
@@ -254,13 +283,6 @@ fn lval_eval_sexpr(mut v: Box<Lval>) -> Box<Lval> {
                 lval_err("S-expression does not start with symbol")
             }
         }
-    }
-}
-
-fn lval_eval(v: Box<Lval>) -> Box<Lval> {
-    match *v {
-        Lval::Sexpr(_) => lval_eval_sexpr(v),
-        _ => v,
     }
 }
 
