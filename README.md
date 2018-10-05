@@ -10,7 +10,7 @@ This is a rewrite of the Lisp built in the book [Build Your Own Lisp](http://www
 
 ## Usage
 
-```shell
+```
 $ git clone https://github.com/deciduously/blispr
 $ cd blispr
 $ cargo run
@@ -28,6 +28,6 @@ It uses `rustyline` as a readline alternative which will save history to `./.bli
 
 ## Currently implemented
 
-* Operators: `+` | `add`, `-` | `sub`, `*` | `mul`, `/` | `div`, '%' | `rem`, `max`, `min`
+* Operators: `+ | add`, `- | sub`, `* | mul`, `/ | div`, `% | rem`, `max`, `min`
 
 ...that's it!
