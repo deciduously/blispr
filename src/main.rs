@@ -189,9 +189,10 @@ fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
         }
         _ => return v,
     }
+
     let mut x = lval_pop(&mut v, 0);
+
     // If no args given and we're doing subtraction, perform unary negation
-    // TODO
 
     // consume the children until empty
     // and operate on x
@@ -288,8 +289,18 @@ fn lval_eval(mut v: Box<Lval>) -> Box<Lval> {
 }
 
 fn main() {
+    // set "-p" to also print out the parsed blipsr, pre-eval
+    let print_parsed = if &::std::env::args().collect::<Vec<String>>()[1] == "-p" {
+        true
+    } else {
+        false
+    };
+
     println!("Blispr v0.0.1");
     println!("Press Ctrl-C or Ctrl-D to exit");
+    if print_parsed {
+        println!("Debug mode enabled");
+    }
 
     let mut rl = Editor::<()>::new();
     if rl.load_history("./.blisp-history.txt").is_err() {
@@ -305,7 +316,11 @@ fn main() {
                     .expect("Syntax error!")
                     .next()
                     .unwrap();
-                println!("{}", lval_eval(lval_read(parsed)));
+                let lval_ptr = lval_read(parsed);
+                if print_parsed {
+                    println!("{}", *lval_ptr);
+                }
+                println!("{}", lval_eval(lval_ptr));
             }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");

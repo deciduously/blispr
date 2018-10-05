@@ -26,6 +26,19 @@ blispr>
 
 It uses `rustyline` as a readline alternative which will save history to `./.blisp-history.txt`.
 
+You can pass `-p` at runtime (`cargo run -- -p` or `blispr -p`) to display the parsed input, pre-eval alongside the result:
+
+```
+$ cargo run -- -p
+Blispr v0.0.1
+Press Ctrl-C or Ctrl-D to exit
+Debug mode enabled
+blispr> + /* apes?! */ 1    2
+(+ 1 2)
+3
+blispr>
+```
+
 ## Currently implemented
 
 * Operators: `+ | add`, `- | sub`, `* | mul`, `/ | div`, `% | rem`, `max`, `min`
