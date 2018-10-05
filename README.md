@@ -15,9 +15,9 @@ Most other differneces stem from this library choice as well, making this librar
 ## Usage
 
 ```shell
-git clone https://github.com/deciduously/blispr
-cd blispr
-cargo run
+$ git clone https://github.com/deciduously/blispr
+$ cd blispr
+$ cargo run
    Compiling blispr v0.0.1 (file:///home/cooldude/code/blispr)
     Finished dev [unoptimized + debuginfo] target(s) in 0.92s
      Running `target/debug/blispr`
