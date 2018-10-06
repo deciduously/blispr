@@ -10,7 +10,7 @@ This is a rewrite of the Lisp built in the book [Build Your Own Lisp](http://www
 
 ## Usage
 
-```
+```blispr
 $ git clone https://github.com/deciduously/blispr
 $ cd blispr
 $ cargo run
@@ -28,7 +28,7 @@ It uses `rustyline` as a readline alternative which will save history to `./.bli
 
 You can pass `-p` at runtime (`cargo run -- -p` or `blispr -p`) to display the parsed input, pre-eval alongside the result:
 
-```
+```blispr
 $ cargo run -- -p
 Blispr v0.0.1
 Press Ctrl-C or Ctrl-D to exit
@@ -41,6 +41,6 @@ blispr>
 
 ## Currently implemented
 
-* Operators: `+ | add`, `- | sub`, `* | mul`, `/ | div`, `% | rem`, `max`, `min`
+* Operators: `+ | add`, `- | sub`, `* | mul`, `/ | div`, `% | rem`, `^ | pow`, `max`, `min`
 
 ...that's it!

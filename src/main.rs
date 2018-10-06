@@ -211,6 +211,15 @@ fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
                 }
             }
             "%" | "rem" => apply_binop!(rem, x, y),
+            "^" | "pow" => {
+                let y_num = lval_num_inner!(y);
+                let x_num = lval_num_inner!(x);
+                let mut coll = 1;
+                for _ in 0..y_num {
+                    coll *= x_num;
+                }
+                x = lval_num(coll);
+            }
             "min" => {
                 let x_num = lval_num_inner!(x);
                 let y_num = lval_num_inner!(y);
@@ -237,9 +246,8 @@ fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
 
 fn builtin<'a>(v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
     match func {
-        "+" | "-" | "*" | "/" | "%" | "add" | "sub" | "mul" | "div" | "rem" | "max" | "min" => {
-            builtin_op(v, func)
-        }
+        "+" | "-" | "*" | "/" | "%" | "^" | "add" | "sub" | "mul" | "div" | "rem" | "pow"
+        | "max" | "min" => builtin_op(v, func),
         _ => lval_err("Unknown function!"),
     }
 }
@@ -290,11 +298,8 @@ fn lval_eval(mut v: Box<Lval>) -> Box<Lval> {
 
 fn main() {
     // set "-p" to also print out the parsed blipsr, pre-eval
-    let print_parsed = if &::std::env::args().collect::<Vec<String>>()[1] == "-p" {
-        true
-    } else {
-        false
-    };
+    // first check if we have a flag at all
+    let print_parsed = &::std::env::args().collect::<Vec<String>>()[1] == "-p";
 
     println!("Blispr v0.0.1");
     println!("Press Ctrl-C or Ctrl-D to exit");
