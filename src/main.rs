@@ -190,7 +190,7 @@ fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
 
     let mut x = lval_pop(&mut v, 0);
 
-    // If no args given and we're doing subtraction, perform unary negation
+    // TODO If no args given and we're doing subtraction, perform unary negation
 
     // consume the children until empty
     // and operate on x
@@ -242,10 +242,28 @@ fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
     x
 }
 
+// Evaluate qexpr as a sexpr
+fn builtin_eval<'a>(v: Box<Lval<'a>>) -> Box<Lval<'a>> {
+    match *v {
+        Lval::Qexpr(ref children) => lval_eval(Box::new(Lval::Sexpr(children.to_vec()))),
+        _ => v,
+    }
+}
+
+// make sexpr into a qexpr
+fn builtin_list<'a>(v: Box<Lval<'a>>) -> Box<Lval<'a>> {
+    match *v {
+        Lval::Sexpr(ref children) => Box::new(Lval::Qexpr(children.to_vec())),
+        _ => v,
+    }
+}
+
 fn builtin<'a>(v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
     match func {
         "+" | "-" | "*" | "/" | "%" | "^" | "add" | "sub" | "mul" | "div" | "rem" | "pow"
         | "max" | "min" => builtin_op(v, func),
+        "eval" => builtin_eval(v),
+        "list" => builtin_list(v),
         _ => lval_err("Unknown function!"),
     }
 }
