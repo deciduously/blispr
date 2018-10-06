@@ -180,8 +180,6 @@ fn lval_read(parsed: Pair<Rule>) -> Box<Lval> {
 // EVAL
 
 fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
-    // TODO check all args are numbers first?
-
     let mut child_count;
     match *v {
         Lval::Sexpr(ref children) => {
@@ -299,7 +297,15 @@ fn lval_eval(mut v: Box<Lval>) -> Box<Lval> {
 fn main() {
     // set "-p" to also print out the parsed blipsr, pre-eval
     // first check if we have a flag at all
-    let print_parsed = &::std::env::args().collect::<Vec<String>>()[1] == "-p";
+    let print_parsed = {
+        let args = &::std::env::args().collect::<Vec<String>>();
+
+        if args.len() == 1 {
+            false
+        } else {
+            args[1] == "-p"
+        }
+    };
 
     println!("Blispr v0.0.1");
     println!("Press Ctrl-C or Ctrl-D to exit");
