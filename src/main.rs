@@ -190,7 +190,11 @@ fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
 
     let mut x = lval_pop(&mut v, 0);
 
-    // TODO If no args given and we're doing subtraction, perform unary negation
+    // If no args given and we're doing subtraction, perform unary negation
+    if (func == "-" || func == "sub") && child_count == 1 {
+        let x_num = lval_num_inner!(x);
+        return lval_num(-x_num);
+    }
 
     // consume the children until empty
     // and operate on x
