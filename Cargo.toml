@@ -3,6 +3,6 @@ authors = ["deciduously <ben@deciduously.com>"]
 name = "blispr"
 version = "0.0.1"
 [dependencies]
-pest = "2.0"
-pest_derive = "2.0"
-rustyline = "2.1"
+pest = "2.1"
+pest_derive = "2.1"
+rustyline = "4.0"
