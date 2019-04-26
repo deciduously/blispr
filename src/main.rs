@@ -1,139 +1,20 @@
-extern crate pest;
 #[macro_use]
 extern crate pest_derive;
-extern crate rustyline;
 
+mod eval;
+mod lval;
+
+use eval::lval_eval;
+use lval::{lval_add, lval_num, lval_qexpr, lval_sexpr, lval_sym, Lval};
 use pest::{iterators::Pair, Parser};
 use rustyline::{error::ReadlineError, Editor};
-use std::{
-    fmt,
-    ops::{Add, Div, Mul, Rem, Sub},
-};
 
 #[cfg(debug_assertions)]
 const _GRAMMAR: &str = include_str!("blispr.pest");
 
 #[derive(Parser)]
 #[grammar = "blispr.pest"]
-struct BlisprParser;
-
-macro_rules! apply_binop {
-    ( $op:ident, $x:ident, $y:ident ) => {
-        match (*$x, *$y) {
-            (Lval::Num(x_num), Lval::Num(y_num)) => {
-                $x = lval_num(x_num.$op(y_num));
-                continue;
-            }
-            _ => return Err(lval_err("Not a number")), // TODO error type
-        }
-    };
-}
-
-// The recursive types hold their children in one of these bad boys
-// TODO Should this be a VecDeque or a LinkedList instead?
-type LvalChildren<'a> = Vec<Box<Lval<'a>>>;
-
-// The main type - all possible Blispr values
-#[derive(Debug, Clone)]
-enum Lval<'a> {
-    Err(&'a str),
-    Num(i64),
-    Sym(&'a str),
-    Sexpr(LvalChildren<'a>),
-    Qexpr(LvalChildren<'a>),
-}
-
-impl<'a> Lval<'a> {
-    fn as_num(&self) -> Result<i64, Box<Lval<'a>>> {
-        match *self {
-            Lval::Num(n_num) => Ok(n_num),
-            _ => Err(lval_err("Not a number!")),
-        }
-    }
-}
-
-// Constructors
-// Each allocates a brand new boxed Lval
-// The recursive types start empty
-
-// You can omit the lifetime annotations when the constructor is passed a reference
-// I included them for consistency
-
-fn lval_err<'a>(e_str: &'a str) -> Box<Lval<'a>> {
-    Box::new(Lval::Err(e_str))
-}
-
-fn lval_num<'a>(n: i64) -> Box<Lval<'a>> {
-    Box::new(Lval::Num(n))
-}
-
-fn lval_sym<'a>(s: &'a str) -> Box<Lval<'a>> {
-    Box::new(Lval::Sym(s))
-}
-
-fn lval_sexpr<'a>() -> Box<Lval<'a>> {
-    Box::new(Lval::Sexpr(Vec::new()))
-}
-
-fn lval_qexpr<'a>(contents: Vec<Box<Lval<'a>>>) -> Box<Lval<'a>> {
-    Box::new(Lval::Qexpr(contents))
-}
-
-// Manipulating children
-
-// Add lval x to lval::sexpr v
-// Takes ownership of both which drops them, and returns a brand new Box<Lval> instead of mutating v
-fn lval_add<'a>(v: Box<Lval<'a>>, x: Box<Lval<'a>>) -> Box<Lval<'a>> {
-    match *v {
-        Lval::Err(_) | Lval::Num(_) | Lval::Sym(_) => {
-            panic!("Tried to add a child to a non-containing lval!")
-        }
-        Lval::Sexpr(ref children) | Lval::Qexpr(ref children) => {
-            let mut new_children = children.clone();
-            new_children.push(x);
-            Box::new(Lval::Sexpr(new_children))
-        }
-    }
-}
-
-// Extract single element of sexpr at index i
-fn lval_pop<'a>(v: &mut Lval<'a>, i: usize) -> Box<Lval<'a>> {
-    match *v {
-        Lval::Sexpr(ref mut children) => {
-            let ret = (&children[i]).clone();
-            children.remove(i);
-            ret
-        }
-        _ => lval_err("Cannot pop from a non-sexpr lval!"),
-    }
-}
-
-// PRINT
-
-impl<'a> fmt::Display for Lval<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Lval::Err(e) => write!(f, "Error: {}", e),
-            Lval::Num(n) => write!(f, "{}", n),
-            Lval::Sym(s) => write!(f, "{}", s),
-            Lval::Sexpr(cell) => write!(f, "({})", lval_expr_print(cell)),
-            Lval::Qexpr(cell) => write!(f, "{{{}}}", lval_expr_print(cell)),
-        }
-    }
-}
-
-fn lval_expr_print(cell: &[Box<Lval>]) -> String {
-    let mut ret = String::new();
-    for i in 0..cell.len() {
-        ret.push_str(&format!("{}", cell[i]));
-        if i < cell.len() - 1 {
-            ret.push_str(" ");
-        }
-    }
-    ret
-}
-
-// READ
+pub struct BlisprParser;
 
 fn is_bracket_or_eoi(parsed: &Pair<Rule>) -> bool {
     if parsed.as_rule() == Rule::EOI {
@@ -143,7 +24,7 @@ fn is_bracket_or_eoi(parsed: &Pair<Rule>) -> bool {
     c == "(" || c == ")" || c == "{" || c == "}"
 }
 
-fn lval_read(parsed: Pair<Rule>) -> Box<Lval> {
+pub fn lval_read(parsed: Pair<Rule>) -> Box<Lval> {
     // TODO skip brackets and such
     match parsed.as_rule() {
         Rule::blispr | Rule::sexpr => {
@@ -174,171 +55,7 @@ fn lval_read(parsed: Pair<Rule>) -> Box<Lval> {
     }
 }
 
-// EVAL
-
-fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Result<Box<Lval<'a>>, Box<Lval<'a>>> {
-    let mut child_count;
-    match *v {
-        Lval::Sexpr(ref children) => {
-            child_count = children.len();
-        }
-        _ => return Ok(v),
-    }
-
-    let mut x = lval_pop(&mut v, 0);
-
-    // If no args given and we're doing subtraction, perform unary negation
-    if (func == "-" || func == "sub") && child_count == 1 {
-        let x_num = x.as_num()?;
-        return Ok(lval_num(-x_num));
-    }
-
-    // consume the children until empty
-    // and operate on x
-    while child_count > 1 {
-        let y = lval_pop(&mut v, 0);
-        child_count -= 1;
-        match func {
-            "+" | "add" => apply_binop!(add, x, y),
-            "-" | "sub" => apply_binop!(sub, x, y),
-            "*" | "mul" => apply_binop!(mul, x, y),
-            "/" | "div" => {
-                if y.as_num()? == 0 {
-                    return Err(lval_err("Divide by zero!"));
-                } else {
-                    apply_binop!(div, x, y)
-                }
-            }
-            "%" | "rem" => apply_binop!(rem, x, y),
-            "^" | "pow" => {
-                let y_num = y.as_num()?;
-                let x_num = x.as_num()?;
-                let mut coll = 1;
-                for _ in 0..y_num {
-                    coll *= x_num;
-                }
-                x = lval_num(coll);
-            }
-            "min" => {
-                let x_num = x.as_num()?;
-                let y_num = y.as_num()?;
-                if x_num < y_num {
-                    x = lval_num(x_num);
-                } else {
-                    x = lval_num(y_num);
-                };
-            }
-            "max" => {
-                let x_num = x.as_num()?;
-                let y_num = y.as_num()?;
-                if x_num > y_num {
-                    x = lval_num(x_num);
-                } else {
-                    x = lval_num(y_num);
-                };
-            }
-            _ => unreachable!(), // builtin() took care of it
-        }
-    }
-    Ok(x)
-}
-
-// Evaluate qexpr as a sexpr
-fn builtin_eval<'a>(v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, Box<Lval<'a>>> {
-    match *v {
-        Lval::Qexpr(ref children) => lval_eval(Box::new(Lval::Sexpr(children.to_vec()))),
-        _ => Ok(v),
-    }
-}
-
-// Join the children into one qexpr
-//fn builtin_join<'a>(v: Box<Lval<'a>>) -> Box<Lval<'a>> {
-//    let mut child_count;
-//    let x = lval_pop(&mut v, 0);
-//
-//    unimplemented!()
-//match *x {
-//Lval::Qexpr
-//
-//}
-//}
-
-// make sexpr into a qexpr
-fn builtin_list<'a>(v: Box<Lval<'a>>) -> Box<Lval<'a>> {
-    match *v {
-        Lval::Sexpr(ref children) => lval_qexpr(children.to_vec()),
-        _ => v,
-    }
-}
-
-fn builtin<'a>(v: Box<Lval<'a>>, func: &str) -> Result<Box<Lval<'a>>, Box<Lval<'a>>> {
-    match func {
-        "+" | "-" | "*" | "/" | "%" | "^" | "add" | "sub" | "mul" | "div" | "rem" | "pow"
-        | "max" | "min" => builtin_op(v, func),
-        "eval" => builtin_eval(v),
-        //"join" => builtin_join(v),
-        "list" => Ok(builtin_list(v)),
-        _ => Err(lval_err("Unknown function!")),
-    }
-}
-
-fn lval_eval(mut v: Box<Lval>) -> Result<Box<Lval>, Box<Lval>> {
-    let child_count;
-    match *v {
-        Lval::Sexpr(ref mut cells) => {
-            // First, evaluate all the cells inside
-            child_count = cells.len();
-            for item in cells.iter_mut().take(child_count) {
-                *item = lval_eval(item.clone())?
-            }
-
-            // Error checking
-            // if any is an error, return an Lval::Err
-            for item in cells.iter().take(child_count) {
-                let res = *item.clone();
-                match res {
-                    Lval::Err(s) => return Err(lval_err(s)),
-                    _ => continue,
-                }
-            }
-        }
-        // if it's not a sexpr, we're done
-        _ => return Ok(v),
-    }
-
-    if child_count == 0 {
-        // It was a sexpr, but it was empty
-        Ok(v)
-    } else if child_count == 1 {
-        // Single expression
-        Ok(lval_pop(&mut v, 0))
-    } else {
-        // Function call
-        // Ensure the first element is a Symbol
-        let lfn = lval_pop(&mut v, 0);
-        match *lfn {
-            Lval::Sym(s) => builtin(v, &s),
-            _ => {
-                println!("{}", *lfn);
-                Err(lval_err("S-expression does not start with symbol"))
-            }
-        }
-    }
-}
-
-fn main() {
-    // set "-p" to also print out the parsed blipsr, pre-eval
-    // first check if we have a flag at all
-    let print_parsed = {
-        let args = &::std::env::args().collect::<Vec<String>>();
-
-        if args.len() == 1 {
-            false
-        } else {
-            args[1] == "-p"
-        }
-    };
-
+fn repl(print_parsed: bool) {
     println!("Blispr v0.0.1");
     println!("Press Ctrl-C or Ctrl-D to exit");
     if print_parsed {
@@ -384,4 +101,20 @@ fn main() {
         }
     }
     rl.save_history("./.blisp-history.txt").unwrap();
+}
+
+fn main() {
+    // set "-p" to also print out the parsed blipsr, pre-eval
+    // first check if we have a flag at all
+    let print_parsed = {
+        let args = &::std::env::args().collect::<Vec<String>>();
+
+        if args.len() == 1 {
+            false
+        } else {
+            args[1] == "-p"
+        }
+    };
+
+    repl(print_parsed);
 }
