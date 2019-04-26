@@ -82,7 +82,7 @@ fn lval_qexpr<'a>() -> Box<Lval<'a>> {
     Box::new(Lval::Qexpr(Vec::new()))
 }
 
-// Manipluating children
+// Manipulating children
 
 // Add lval x to lval::sexpr v
 // Takes ownership of both which drops them, and returns a brand new Box<Lval> instead of mutating v
@@ -225,7 +225,7 @@ fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
             "min" => {
                 let x_num = lval_num_inner!(x);
                 let y_num = lval_num_inner!(y);
-                if x_num > y_num {
+                if x_num < y_num {
                     x = lval_num(x_num);
                 } else {
                     x = lval_num(y_num);
@@ -234,7 +234,7 @@ fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
             "max" => {
                 let x_num = lval_num_inner!(x);
                 let y_num = lval_num_inner!(y);
-                if x_num < y_num {
+                if x_num > y_num {
                     x = lval_num(x_num);
                 } else {
                     x = lval_num(y_num);
@@ -254,6 +254,18 @@ fn builtin_eval<'a>(v: Box<Lval<'a>>) -> Box<Lval<'a>> {
     }
 }
 
+// Join the children into one qexpr
+//fn builtin_join<'a>(v: Box<Lval<'a>>) -> Box<Lval<'a>> {
+//    let mut child_count;
+//    let x = lval_pop(&mut v, 0);
+//
+//    unimplemented!()
+//match *x {
+//Lval::Qexpr
+//
+//}
+//}
+
 // make sexpr into a qexpr
 fn builtin_list<'a>(v: Box<Lval<'a>>) -> Box<Lval<'a>> {
     match *v {
@@ -267,6 +279,7 @@ fn builtin<'a>(v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
         "+" | "-" | "*" | "/" | "%" | "^" | "add" | "sub" | "mul" | "div" | "rem" | "pow"
         | "max" | "min" => builtin_op(v, func),
         "eval" => builtin_eval(v),
+        //"join" => builtin_join(v),
         "list" => builtin_list(v),
         _ => lval_err("Unknown function!"),
     }
