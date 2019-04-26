@@ -19,24 +19,12 @@ struct BlisprParser;
 
 macro_rules! apply_binop {
     ( $op:ident, $x:ident, $y:ident ) => {
-        match *$x {
-            Lval::Num(x_num) => match *$y {
-                Lval::Num(y_num) => {
-                    $x = lval_num(x_num.$op(y_num));
-                    continue;
-                }
-                _ => return lval_err("Not a number"), // TODO error type
-            },
-            _ => return lval_err("Not a number"),
-        }
-    };
-}
-
-macro_rules! lval_num_inner {
-    ( $lval_n:ident ) => {
-        match *$lval_n {
-            Lval::Num(n_num) => n_num,
-            _ => return lval_err("Not a number"),
+        match (*$x, *$y) {
+            (Lval::Num(x_num), Lval::Num(y_num)) => {
+                $x = lval_num(x_num.$op(y_num));
+                continue;
+            }
+            _ => return Err(lval_err("Not a number")), // TODO error type
         }
     };
 }
@@ -53,6 +41,15 @@ enum Lval<'a> {
     Sym(&'a str),
     Sexpr(LvalChildren<'a>),
     Qexpr(LvalChildren<'a>),
+}
+
+impl<'a> Lval<'a> {
+    fn as_num(&self) -> Result<i64, Box<Lval<'a>>> {
+        match *self {
+            Lval::Num(n_num) => Ok(n_num),
+            _ => Err(lval_err("Not a number!")),
+        }
+    }
 }
 
 // Constructors
@@ -179,21 +176,21 @@ fn lval_read(parsed: Pair<Rule>) -> Box<Lval> {
 
 // EVAL
 
-fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
+fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Result<Box<Lval<'a>>, Box<Lval<'a>>> {
     let mut child_count;
     match *v {
         Lval::Sexpr(ref children) => {
             child_count = children.len();
         }
-        _ => return v,
+        _ => return Ok(v),
     }
 
     let mut x = lval_pop(&mut v, 0);
 
     // If no args given and we're doing subtraction, perform unary negation
     if (func == "-" || func == "sub") && child_count == 1 {
-        let x_num = lval_num_inner!(x);
-        return lval_num(-x_num);
+        let x_num = x.as_num()?;
+        return Ok(lval_num(-x_num));
     }
 
     // consume the children until empty
@@ -206,16 +203,16 @@ fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
             "-" | "sub" => apply_binop!(sub, x, y),
             "*" | "mul" => apply_binop!(mul, x, y),
             "/" | "div" => {
-                if lval_num_inner!(y) == 0 {
-                    return lval_err("Divide by zero!");
+                if y.as_num()? == 0 {
+                    return Err(lval_err("Divide by zero!"));
                 } else {
                     apply_binop!(div, x, y)
                 }
             }
             "%" | "rem" => apply_binop!(rem, x, y),
             "^" | "pow" => {
-                let y_num = lval_num_inner!(y);
-                let x_num = lval_num_inner!(x);
+                let y_num = y.as_num()?;
+                let x_num = x.as_num()?;
                 let mut coll = 1;
                 for _ in 0..y_num {
                     coll *= x_num;
@@ -223,8 +220,8 @@ fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
                 x = lval_num(coll);
             }
             "min" => {
-                let x_num = lval_num_inner!(x);
-                let y_num = lval_num_inner!(y);
+                let x_num = x.as_num()?;
+                let y_num = y.as_num()?;
                 if x_num < y_num {
                     x = lval_num(x_num);
                 } else {
@@ -232,8 +229,8 @@ fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
                 };
             }
             "max" => {
-                let x_num = lval_num_inner!(x);
-                let y_num = lval_num_inner!(y);
+                let x_num = x.as_num()?;
+                let y_num = y.as_num()?;
                 if x_num > y_num {
                     x = lval_num(x_num);
                 } else {
@@ -243,14 +240,14 @@ fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
             _ => unreachable!(), // builtin() took care of it
         }
     }
-    x
+    Ok(x)
 }
 
 // Evaluate qexpr as a sexpr
-fn builtin_eval<'a>(v: Box<Lval<'a>>) -> Box<Lval<'a>> {
+fn builtin_eval<'a>(v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, Box<Lval<'a>>> {
     match *v {
         Lval::Qexpr(ref children) => lval_eval(Box::new(Lval::Sexpr(children.to_vec()))),
-        _ => v,
+        _ => Ok(v),
     }
 }
 
@@ -274,25 +271,25 @@ fn builtin_list<'a>(v: Box<Lval<'a>>) -> Box<Lval<'a>> {
     }
 }
 
-fn builtin<'a>(v: Box<Lval<'a>>, func: &str) -> Box<Lval<'a>> {
+fn builtin<'a>(v: Box<Lval<'a>>, func: &str) -> Result<Box<Lval<'a>>, Box<Lval<'a>>> {
     match func {
         "+" | "-" | "*" | "/" | "%" | "^" | "add" | "sub" | "mul" | "div" | "rem" | "pow"
         | "max" | "min" => builtin_op(v, func),
         "eval" => builtin_eval(v),
         //"join" => builtin_join(v),
-        "list" => builtin_list(v),
-        _ => lval_err("Unknown function!"),
+        "list" => Ok(builtin_list(v)),
+        _ => Err(lval_err("Unknown function!")),
     }
 }
 
-fn lval_eval(mut v: Box<Lval>) -> Box<Lval> {
+fn lval_eval(mut v: Box<Lval>) -> Result<Box<Lval>, Box<Lval>> {
     let child_count;
     match *v {
         Lval::Sexpr(ref mut cells) => {
             // First, evaluate all the cells inside
             child_count = cells.len();
             for item in cells.iter_mut().take(child_count) {
-                *item = lval_eval(item.clone())
+                *item = lval_eval(item.clone())?
             }
 
             // Error checking
@@ -300,21 +297,21 @@ fn lval_eval(mut v: Box<Lval>) -> Box<Lval> {
             for item in cells.iter().take(child_count) {
                 let res = *item.clone();
                 match res {
-                    Lval::Err(s) => return lval_err(s),
+                    Lval::Err(s) => return Err(lval_err(s)),
                     _ => continue,
                 }
             }
         }
         // if it's not a sexpr, we're done
-        _ => return v,
+        _ => return Ok(v),
     }
 
     if child_count == 0 {
         // It was a sexpr, but it was empty
-        v
+        Ok(v)
     } else if child_count == 1 {
         // Single expression
-        lval_pop(&mut v, 0)
+        Ok(lval_pop(&mut v, 0))
     } else {
         // Function call
         // Ensure the first element is a Symbol
@@ -323,7 +320,7 @@ fn lval_eval(mut v: Box<Lval>) -> Box<Lval> {
             Lval::Sym(s) => builtin(v, &s),
             _ => {
                 println!("{}", *lfn);
-                lval_err("S-expression does not start with symbol")
+                Err(lval_err("S-expression does not start with symbol"))
             }
         }
     }
@@ -366,7 +363,11 @@ fn main() {
                 if print_parsed {
                     println!("{}", *lval_ptr);
                 }
-                println!("{}", lval_eval(lval_ptr));
+                let res = match lval_eval(lval_ptr) {
+                    Ok(r) => r,
+                    Err(e) => e,
+                };
+                println!("{}", res);
             }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");
