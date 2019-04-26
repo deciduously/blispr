@@ -75,8 +75,8 @@ fn lval_sexpr<'a>() -> Box<Lval<'a>> {
     Box::new(Lval::Sexpr(Vec::new()))
 }
 
-fn lval_qexpr<'a>() -> Box<Lval<'a>> {
-    Box::new(Lval::Qexpr(Vec::new()))
+fn lval_qexpr<'a>(contents: Vec<Box<Lval<'a>>>) -> Box<Lval<'a>> {
+    Box::new(Lval::Qexpr(contents))
 }
 
 // Manipulating children
@@ -159,7 +159,7 @@ fn lval_read(parsed: Pair<Rule>) -> Box<Lval> {
         }
         Rule::expr => lval_read(parsed.into_inner().next().unwrap()),
         Rule::qexpr => {
-            let mut ret = lval_qexpr();
+            let mut ret = lval_qexpr(Vec::new());
             for child in parsed.into_inner() {
                 if is_bracket_or_eoi(&child) {
                     continue;
@@ -266,7 +266,7 @@ fn builtin_eval<'a>(v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, Box<Lval<'a>>> {
 // make sexpr into a qexpr
 fn builtin_list<'a>(v: Box<Lval<'a>>) -> Box<Lval<'a>> {
     match *v {
-        Lval::Sexpr(ref children) => Box::new(Lval::Qexpr(children.to_vec())),
+        Lval::Sexpr(ref children) => lval_qexpr(children.to_vec()),
         _ => v,
     }
 }
