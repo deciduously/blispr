@@ -83,7 +83,7 @@ fn lval_qexpr<'a>(contents: Vec<Box<Lval<'a>>>) -> Box<Lval<'a>> {
 
 // Add lval x to lval::sexpr v
 // Takes ownership of both which drops them, and returns a brand new Box<Lval> instead of mutating v
-fn lval_add<'a>(v: &Lval<'a>, x: Box<Lval<'a>>) -> Box<Lval<'a>> {
+fn lval_add<'a>(v: Box<Lval<'a>>, x: Box<Lval<'a>>) -> Box<Lval<'a>> {
     match *v {
         Lval::Err(_) | Lval::Num(_) | Lval::Sym(_) => {
             panic!("Tried to add a child to a non-containing lval!")
@@ -153,7 +153,7 @@ fn lval_read(parsed: Pair<Rule>) -> Box<Lval> {
                 if is_bracket_or_eoi(&child) {
                     continue;
                 }
-                ret = lval_add(&ret, lval_read(child));
+                ret = lval_add(ret, lval_read(child));
             }
             ret
         }
@@ -164,7 +164,7 @@ fn lval_read(parsed: Pair<Rule>) -> Box<Lval> {
                 if is_bracket_or_eoi(&child) {
                     continue;
                 }
-                ret = lval_add(&ret, lval_read(child));
+                ret = lval_add(ret, lval_read(child));
             }
             ret
         }
