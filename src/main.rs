@@ -28,7 +28,7 @@ pub fn lval_read(parsed: Pair<Rule>) -> Box<Lval> {
     // TODO skip brackets and such
     match parsed.as_rule() {
         Rule::blispr | Rule::sexpr => {
-            let mut ret = lval_sexpr();
+            let mut ret = lval_sexpr(Vec::new());
             for child in parsed.into_inner() {
                 // here is where you skip stuff
                 if is_bracket_or_eoi(&child) {

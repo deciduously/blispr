@@ -65,8 +65,8 @@ pub fn lval_sym<'a>(s: &'a str) -> Box<Lval<'a>> {
     Box::new(Lval::Sym(s))
 }
 
-pub fn lval_sexpr<'a>() -> Box<Lval<'a>> {
-    Box::new(Lval::Sexpr(Vec::new()))
+pub fn lval_sexpr<'a>(contents: Vec<Box<Lval<'a>>>) -> Box<Lval<'a>> {
+    Box::new(Lval::Sexpr(contents))
 }
 
 pub fn lval_qexpr<'a>(contents: Vec<Box<Lval<'a>>>) -> Box<Lval<'a>> {
