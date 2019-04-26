@@ -43,4 +43,11 @@ blispr>
 
 * Operators: `+ | add`, `- | sub`, `* | mul`, `/ | div`, `% | rem`, `^ | pow`, `max`, `min`
 
-...that's it!
+* `list`:
+
+```
+blispr> list 1 2 3
+{1 2 3}
+```
+
+...that's it!  `eval` and `join` are coming, it's gonna be off the chain.
