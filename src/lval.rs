@@ -21,6 +21,12 @@ impl<'a> Lval<'a> {
             _ => Err(lval_err("Not a number!")),
         }
     }
+    pub fn len(&self) -> Result<usize, Box<Lval<'a>>> {
+        match *self {
+            Lval::Sexpr(ref children) | Lval::Qexpr(ref children) => Ok(children.len()),
+            _ => Err(lval_err("called len() on a non-containing lval")),
+        }
+    }
 }
 
 impl<'a> fmt::Display for Lval<'a> {
@@ -97,4 +103,12 @@ pub fn lval_pop<'a>(v: &mut Lval<'a>, i: usize) -> Box<Lval<'a>> {
         }
         _ => lval_err("Cannot pop from a non-containing lval!"),
     }
+}
+
+// Add each cell in y to x
+pub fn lval_join<'a>(x: &mut Lval<'a>, mut y: Box<Lval<'a>>) -> Result<(), Box<Lval<'a>>> {
+    while y.len()? > 0 {
+        lval_add(x, lval_pop(&mut y, 0));
+    }
+    Ok(())
 }

@@ -1,4 +1,6 @@
-use crate::lval::{lval_add, lval_err, lval_num, lval_pop, lval_qexpr, lval_sexpr, Lval};
+use crate::lval::{
+    lval_add, lval_err, lval_join, lval_num, lval_pop, lval_qexpr, lval_sexpr, Lval,
+};
 use std::ops::{Add, Div, Mul, Rem, Sub};
 
 macro_rules! apply_binop {
@@ -118,15 +120,19 @@ fn builtin_eval<'a>(v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, Box<Lval<'a>>> {
 }
 
 // Join the children into one qexpr
-//fn builtin_join<'a>(v: Box<Lval<'a>>) -> Box<Lval<'a>> {
-//    let mut child_count;
-//    let x = lval_pop(&mut v, 0);
-//
-//    match *x {
-//    Lval::Qexpr
-//
-//    }
-//}
+fn builtin_join<'a>(mut v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, Box<Lval<'a>>> {
+    let mut ret = lval_qexpr();
+    for _ in 0..v.len()? {
+        let next = lval_pop(&mut v, 0);
+        match *next {
+            Lval::Qexpr(_) => {
+                lval_join(&mut ret, next)?;
+            }
+            _ => return Err(lval_err("non-Qexpr arg passed to join")),
+        }
+    }
+    Ok(ret)
+}
 
 // make sexpr into a qexpr
 fn builtin_list<'a>(v: Box<Lval<'a>>) -> Box<Lval<'a>> {
@@ -153,7 +159,7 @@ fn builtin<'a>(mut v: Box<Lval<'a>>, func: &str) -> Result<Box<Lval<'a>>, Box<Lv
             let qexpr = lval_pop(&mut v, 0);
             builtin_eval(qexpr)
         }
-        //"join" => builtin_join(v),
+        "join" => builtin_join(v),
         "list" => Ok(builtin_list(v)),
         _ => Err(lval_err("Unknown function!")),
     }
