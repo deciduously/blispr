@@ -91,6 +91,13 @@ blispr> join (list 1 2) (list 3 4)
 {1 2 3 4}
 ```
 
+* `len`:
+
+```
+blispr> len (list 1 2 3 4 5)
+5
+```
+
 ...that's it!
 
 Only accepts integers for now, decimal points in numbers are a syntax error.

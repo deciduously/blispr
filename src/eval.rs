@@ -150,6 +150,17 @@ fn builtin_list<'a>(v: Box<Lval<'a>>) -> Box<Lval<'a>> {
     }
 }
 
+fn builtin_len<'a>(mut v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, Box<Lval<'a>>> {
+    if v.len()? != 1 {
+        return Err(lval_err("len called with more than one argument"));
+    }
+    let qexpr = lval_pop(&mut v, 0);
+    match *qexpr {
+        Lval::Qexpr(_) => Ok(lval_num(qexpr.len()? as i64)),
+        _ => Err(lval_err("len called on something that isn't a list")),
+    }
+}
+
 fn builtin<'a>(mut v: Box<Lval<'a>>, func: &str) -> Result<Box<Lval<'a>>, Box<Lval<'a>>> {
     match func {
         "+" | "-" | "*" | "/" | "%" | "^" | "add" | "sub" | "mul" | "div" | "rem" | "pow"
@@ -160,6 +171,7 @@ fn builtin<'a>(mut v: Box<Lval<'a>>, func: &str) -> Result<Box<Lval<'a>>, Box<Lv
             builtin_eval(qexpr)
         }
         "join" => builtin_join(v),
+        "len" => builtin_len(v),
         "list" => Ok(builtin_list(v)),
         _ => Err(lval_err("Unknown function!")),
     }
