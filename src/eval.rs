@@ -101,6 +101,30 @@ fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Result<Box<Lval<'a>>, Bli
     Ok(x)
 }
 
+// Attach a value to the front of a qexpr
+fn builtin_cons<'a>(mut v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, BlisprError> {
+    let child_count = v.len()?;
+    if child_count != 2 {
+        return Err(BlisprError::NumArguments(2, child_count));
+    }
+    let new_elem = lval_pop(&mut v, 0)?;
+    let qexpr = lval_pop(&mut v, 0)?;
+    match *qexpr {
+        Lval::Qexpr(ref children) => {
+            let mut ret = lval_qexpr();
+            lval_add(&mut ret, new_elem)?;
+            for c in children {
+                lval_add(&mut ret, c.clone())?;
+            }
+            Ok(ret)
+        }
+        _ => Err(BlisprError::WrongType(
+            "qexpr".to_string(),
+            format!("{:?}", v),
+        )),
+    }
+}
+
 // Evaluate qexpr as a sexpr
 fn builtin_eval<'a>(mut v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, BlisprError> {
     let qexpr = lval_pop(&mut v, 0)?;
@@ -223,6 +247,7 @@ fn builtin<'a>(v: Box<Lval<'a>>, func: &str) -> Result<Box<Lval<'a>>, BlisprErro
     match func {
         "+" | "-" | "*" | "/" | "%" | "^" | "add" | "sub" | "mul" | "div" | "rem" | "pow"
         | "max" | "min" => builtin_op(v, func),
+        "cons" => builtin_cons(v),
         "eval" => builtin_eval(v),
         "head" => builtin_head(v),
         "join" => builtin_join(v),

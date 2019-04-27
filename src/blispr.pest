@@ -5,7 +5,7 @@ num = @{ int }
     int = { ("+" | "-")? ~ digit+ }
     digit = { '0'..'9' }
 
-symbol = @{ "+" | "-" | "*" | "/" | "%" | "^" | "add" | "sub" | "mul" | "div" | "rem" | "pow" | "max" | "min" | "list" | "eval" | "join" | "len" | "head" | "tail" }
+symbol = @{ "+" | "-" | "*" | "/" | "%" | "^" | "add" | "sub" | "mul" | "div" | "rem" | "pow" | "max" | "min" | "list" | "eval" | "join" | "len" | "head" | "tail" | "cons" }
 
 sexpr = { "(" ~ expr* ~ ")" }
 

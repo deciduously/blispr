@@ -83,6 +83,8 @@ blispr> head {1 2 3}
 1
 blispr> tail {1 2 3}
 {2 3}
+blispr> cons 3 {4 5}
+{3 4 5}
 ```
 
 ...that's it!
