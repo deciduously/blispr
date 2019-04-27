@@ -1,5 +1,7 @@
 #[macro_use]
 extern crate pest_derive;
+#[macro_use]
+extern crate log;
 
 mod eval;
 mod lval;
@@ -8,6 +10,7 @@ mod parse;
 use parse::repl;
 
 fn main() {
+    pretty_env_logger::init();
     // set "-p" to also print out the parsed blipsr, pre-eval
     // first check if we have a flag at all
     let print_parsed = {

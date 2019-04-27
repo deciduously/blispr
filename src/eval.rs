@@ -26,6 +26,7 @@ fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Result<Box<Lval<'a>>, Box
 
     // If no args given and we're doing subtraction, perform unary negation
     if (func == "-" || func == "sub") && child_count == 1 {
+        debug!("Unary negation on {}", x);
         let x_num = x.as_num()?;
         return Ok(lval_num(-x_num));
     }
@@ -36,18 +37,33 @@ fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Result<Box<Lval<'a>>, Box
         let y = lval_pop(&mut v, 0);
         child_count -= 1;
         match func {
-            "+" | "add" => apply_binop!(add, x, y),
-            "-" | "sub" => apply_binop!(sub, x, y),
-            "*" | "mul" => apply_binop!(mul, x, y),
+            "+" | "add" => {
+                debug!("Add {} and {}", x, y);
+                apply_binop!(add, x, y)
+            }
+            "-" | "sub" => {
+                debug!("Subtract {} and {}", x, y);
+                apply_binop!(sub, x, y)
+            }
+            "*" | "mul" => {
+                debug!("Multiply {} and {}", x, y);
+                apply_binop!(mul, x, y)
+            }
             "/" | "div" => {
                 if y.as_num()? == 0 {
+                    debug!("Failed divide {} by {}", x, y);
                     return Err(lval_err("Divide by zero!"));
                 } else {
+                    debug!("Divide {} by {}", x, y);
                     apply_binop!(div, x, y)
                 }
             }
-            "%" | "rem" => apply_binop!(rem, x, y),
+            "%" | "rem" => {
+                debug!("{} % {}", x, y);
+                apply_binop!(rem, x, y)
+            }
             "^" | "pow" => {
+                debug!("Raise {} to the {} power", x, y);
                 let y_num = y.as_num()?;
                 let x_num = x.as_num()?;
                 let mut coll = 1;
@@ -57,6 +73,7 @@ fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Result<Box<Lval<'a>>, Box
                 x = lval_num(coll);
             }
             "min" => {
+                debug!("Min {} and {}", x, y);
                 let x_num = x.as_num()?;
                 let y_num = y.as_num()?;
                 if x_num < y_num {
@@ -66,6 +83,7 @@ fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Result<Box<Lval<'a>>, Box
                 };
             }
             "max" => {
+                debug!("Max {} and {}", x, y);
                 let x_num = x.as_num()?;
                 let y_num = y.as_num()?;
                 if x_num > y_num {
@@ -89,10 +107,13 @@ fn builtin_eval<'a>(v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, Box<Lval<'a>>> {
                 let cloned = Box::new(*c.clone());
                 lval_add(&mut new_sexpr, cloned);
             }
-            println!("builtin_eval: {:?}", new_sexpr);
+            debug!("builtin_eval: {:?}", new_sexpr);
             lval_eval(new_sexpr)
         }
-        _ => Err(lval_err("Tried to eval a non-qexpr")),
+        _ => {
+            debug!("Failed builtin_eval on {:?}", v);
+            Err(lval_err("Tried to eval a non-qexpr"))
+        }
     }
 }
 
@@ -111,6 +132,7 @@ fn builtin_eval<'a>(v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, Box<Lval<'a>>> {
 fn builtin_list<'a>(v: Box<Lval<'a>>) -> Box<Lval<'a>> {
     match *v {
         Lval::Sexpr(ref children) => {
+            debug!("Building list from {:?}", children);
             let mut new_qexpr = lval_qexpr();
             for c in children {
                 let cloned = Box::new(*c.clone());
@@ -122,11 +144,15 @@ fn builtin_list<'a>(v: Box<Lval<'a>>) -> Box<Lval<'a>> {
     }
 }
 
-fn builtin<'a>(v: Box<Lval<'a>>, func: &str) -> Result<Box<Lval<'a>>, Box<Lval<'a>>> {
+fn builtin<'a>(mut v: Box<Lval<'a>>, func: &str) -> Result<Box<Lval<'a>>, Box<Lval<'a>>> {
     match func {
         "+" | "-" | "*" | "/" | "%" | "^" | "add" | "sub" | "mul" | "div" | "rem" | "pow"
         | "max" | "min" => builtin_op(v, func),
-        "eval" => builtin_eval(v),
+        "eval" => {
+            // Unwrap the containing Sexpr
+            let qexpr = lval_pop(&mut v, 0);
+            builtin_eval(qexpr)
+        }
         //"join" => builtin_join(v),
         "list" => Ok(builtin_list(v)),
         _ => Err(lval_err("Unknown function!")),
@@ -137,6 +163,7 @@ pub fn lval_eval(mut v: Box<Lval>) -> Result<Box<Lval>, Box<Lval>> {
     let child_count;
     match *v {
         Lval::Sexpr(ref mut cells) => {
+            debug!("lval_eval: Sexpr({:?})", cells);
             // First, evaluate all the cells inside
             child_count = cells.len();
             for item in cells.iter_mut().take(child_count) {
@@ -154,7 +181,10 @@ pub fn lval_eval(mut v: Box<Lval>) -> Result<Box<Lval>, Box<Lval>> {
             }
         }
         // if it's not a sexpr, we're done
-        _ => return Ok(v),
+        _ => {
+            debug!("lval_eval: Non-sexpr: {:?}", v);
+            return Ok(v);
+        }
     }
 
     if child_count == 0 {
@@ -167,6 +197,7 @@ pub fn lval_eval(mut v: Box<Lval>) -> Result<Box<Lval>, Box<Lval>> {
         // Function call
         // Ensure the first element is a Symbol
         let lfn = lval_pop(&mut v, 0);
+        debug!("Calling function {} on {:?}", lfn, v);
         match *lfn {
             Lval::Sym(s) => builtin(v, &s),
             _ => {

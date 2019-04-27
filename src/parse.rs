@@ -83,19 +83,19 @@ pub fn repl(print_parsed: bool) {
                     Ok(r) => r,
                     Err(e) => e,
                 };
-                println!("Debug: {:?}", res);
+                debug!("Result: {:?}", res);
                 println!("{}", res);
             }
             Err(ReadlineError::Interrupted) => {
-                println!("CTRL-C");
+                info!("CTRL-C");
                 break;
             }
             Err(ReadlineError::Eof) => {
-                println!("CTRL-D");
+                info!("CTRL-D");
                 break;
             }
             Err(err) => {
-                println!("Error: {:?}", err);
+                warn!("Error: {:?}", err);
                 break;
             }
         }

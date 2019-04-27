@@ -82,6 +82,7 @@ pub fn lval_add<'a>(v: &mut Lval<'a>, x: Box<Lval<'a>>) {
             panic!("Tried to add a child to a non-containing lval!")
         }
         Lval::Sexpr(ref mut children) | Lval::Qexpr(ref mut children) => {
+            debug!("lval_add: Adding {:?} to {:?}", x, children);
             children.push(x);
         }
     }
@@ -90,11 +91,11 @@ pub fn lval_add<'a>(v: &mut Lval<'a>, x: Box<Lval<'a>>) {
 // Extract single element of sexpr at index i
 pub fn lval_pop<'a>(v: &mut Lval<'a>, i: usize) -> Box<Lval<'a>> {
     match *v {
-        Lval::Sexpr(ref mut children) => {
+        Lval::Sexpr(ref mut children) | Lval::Qexpr(ref mut children) => {
             let ret = (&children[i]).clone();
             children.remove(i);
             ret
         }
-        _ => lval_err("Cannot pop from a non-sexpr lval!"),
+        _ => lval_err("Cannot pop from a non-containing lval!"),
     }
 }
