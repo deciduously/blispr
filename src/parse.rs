@@ -1,4 +1,5 @@
 use crate::{
+    error::BlisprError,
     eval::lval_eval,
     lval::{lval_add, lval_num, lval_qexpr, lval_sexpr, lval_sym, Lval},
 };
@@ -20,8 +21,7 @@ fn is_bracket_or_eoi(parsed: &Pair<Rule>) -> bool {
     c == "(" || c == ")" || c == "{" || c == "}"
 }
 
-fn lval_read(parsed: Pair<Rule>) -> Box<Lval> {
-    // TODO skip brackets and such
+fn lval_read(parsed: Pair<Rule>) -> Result<Box<Lval>, BlisprError> {
     match parsed.as_rule() {
         Rule::blispr | Rule::sexpr => {
             let mut ret = lval_sexpr();
@@ -30,9 +30,9 @@ fn lval_read(parsed: Pair<Rule>) -> Box<Lval> {
                 if is_bracket_or_eoi(&child) {
                     continue;
                 }
-                lval_add(&mut ret, lval_read(child));
+                lval_add(&mut ret, lval_read(child)?)?;
             }
-            ret
+            Ok(ret)
         }
         Rule::expr => lval_read(parsed.into_inner().next().unwrap()),
         Rule::qexpr => {
@@ -41,17 +41,17 @@ fn lval_read(parsed: Pair<Rule>) -> Box<Lval> {
                 if is_bracket_or_eoi(&child) {
                     continue;
                 }
-                lval_add(&mut ret, lval_read(child));
+                lval_add(&mut ret, lval_read(child)?)?;
             }
-            ret
+            Ok(ret)
         }
-        Rule::num => lval_num(parsed.as_str().parse::<i64>().unwrap()),
-        Rule::symbol => lval_sym(parsed.as_str()),
-        _ => unreachable!(),
+        Rule::num => Ok(lval_num(parsed.as_str().parse::<i64>().unwrap())),
+        Rule::symbol => Ok(lval_sym(parsed.as_str())),
+        _ => unreachable!(), // COMMENT/WHITESPACE etc
     }
 }
 
-pub fn repl(print_parsed: bool) {
+pub fn repl(print_parsed: bool) -> Result<(), BlisprError> {
     println!("Blispr v0.0.1");
     println!("Press Ctrl-C or Ctrl-D to exit");
     if print_parsed {
@@ -76,16 +76,17 @@ pub fn repl(print_parsed: bool) {
                     }
                 };
                 debug!("{}", parsed);
-                let lval_ptr = lval_read(parsed);
+                let lval_ptr = lval_read(parsed)?;
                 if print_parsed {
                     println!("{}", *lval_ptr);
                 }
-                let res = match lval_eval(lval_ptr) {
-                    Ok(r) => r,
-                    Err(e) => e,
+                match lval_eval(lval_ptr) {
+                    Ok(r) => {
+                        debug!("Result: {:?}", r);
+                        println!("{}", r);
+                    }
+                    Err(e) => eprintln!("Error: {}", e),
                 };
-                debug!("Result: {:?}", res);
-                println!("{}", res);
             }
             Err(ReadlineError::Interrupted) => {
                 info!("CTRL-C");
@@ -102,4 +103,5 @@ pub fn repl(print_parsed: bool) {
         }
     }
     rl.save_history("./.blisp-history.txt").unwrap();
+    Ok(())
 }

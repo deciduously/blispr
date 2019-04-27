@@ -1,5 +1,6 @@
-use crate::lval::{
-    lval_add, lval_err, lval_join, lval_num, lval_pop, lval_qexpr, lval_sexpr, Lval,
+use crate::{
+    error::BlisprError,
+    lval::{lval_add, lval_join, lval_num, lval_pop, lval_qexpr, lval_sexpr, Lval},
 };
 use std::ops::{Add, Div, Mul, Rem, Sub};
 
@@ -10,12 +11,12 @@ macro_rules! apply_binop {
                 $x = lval_num(x_num.$op(y_num));
                 continue;
             }
-            _ => return Err(lval_err("Not a number")), // TODO error type
+            _ => return Err(BlisprError::NotANumber), // TODO error type
         }
     };
 }
 
-fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Result<Box<Lval<'a>>, Box<Lval<'a>>> {
+fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Result<Box<Lval<'a>>, BlisprError> {
     let mut child_count;
     match *v {
         Lval::Sexpr(ref children) => {
@@ -24,7 +25,7 @@ fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Result<Box<Lval<'a>>, Box
         _ => return Ok(v),
     }
 
-    let mut x = lval_pop(&mut v, 0);
+    let mut x = lval_pop(&mut v, 0)?;
 
     // If no args given and we're doing subtraction, perform unary negation
     if (func == "-" || func == "sub") && child_count == 1 {
@@ -36,7 +37,7 @@ fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Result<Box<Lval<'a>>, Box
     // consume the children until empty
     // and operate on x
     while child_count > 1 {
-        let y = lval_pop(&mut v, 0);
+        let y = lval_pop(&mut v, 0)?;
         child_count -= 1;
         match func {
             "+" | "add" => {
@@ -54,7 +55,7 @@ fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Result<Box<Lval<'a>>, Box
             "/" | "div" => {
                 if y.as_num()? == 0 {
                     debug!("Failed divide {} by {}", x, y);
-                    return Err(lval_err("Divide by zero!"));
+                    return Err(BlisprError::DivideByZero);
                 } else {
                     debug!("Divide {} by {}", x, y);
                     apply_binop!(div, x, y)
@@ -101,83 +102,97 @@ fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Result<Box<Lval<'a>>, Box
 }
 
 // Evaluate qexpr as a sexpr
-fn builtin_eval<'a>(v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, Box<Lval<'a>>> {
+fn builtin_eval<'a>(v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, BlisprError> {
     match *v {
         Lval::Qexpr(ref children) => {
             let mut new_sexpr = lval_sexpr();
             for c in children {
                 let cloned = Box::new(*c.clone());
-                lval_add(&mut new_sexpr, cloned);
+                lval_add(&mut new_sexpr, cloned)?;
             }
             debug!("builtin_eval: {:?}", new_sexpr);
             lval_eval(new_sexpr)
         }
         _ => {
             debug!("Failed builtin_eval on {:?}", v);
-            Err(lval_err("Tried to eval a non-qexpr"))
+            Err(BlisprError::WrongType(
+                "qexpr".to_string(),
+                format!("{:?}", v),
+            ))
         }
     }
 }
 
 // Join the children into one qexpr
-fn builtin_join<'a>(mut v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, Box<Lval<'a>>> {
+fn builtin_join<'a>(mut v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, BlisprError> {
     let mut ret = lval_qexpr();
     for _ in 0..v.len()? {
-        let next = lval_pop(&mut v, 0);
+        let next = lval_pop(&mut v, 0)?;
         match *next {
             Lval::Qexpr(_) => {
                 lval_join(&mut ret, next)?;
             }
-            _ => return Err(lval_err("non-Qexpr arg passed to join")),
+            _ => {
+                return Err(BlisprError::WrongType(
+                    "qexpr".to_string(),
+                    format!("{:?}", next),
+                ))
+            }
         }
     }
     Ok(ret)
 }
 
 // make sexpr into a qexpr
-fn builtin_list<'a>(v: Box<Lval<'a>>) -> Box<Lval<'a>> {
+fn builtin_list<'a>(v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, BlisprError> {
     match *v {
         Lval::Sexpr(ref children) => {
             debug!("Building list from {:?}", children);
             let mut new_qexpr = lval_qexpr();
             for c in children {
                 let cloned = Box::new(*c.clone());
-                lval_add(&mut new_qexpr, cloned);
+                lval_add(&mut new_qexpr, cloned)?;
             }
-            new_qexpr
+            Ok(new_qexpr)
         }
-        _ => v,
+        _ => Ok(v),
     }
 }
 
-fn builtin_len<'a>(mut v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, Box<Lval<'a>>> {
-    if v.len()? != 1 {
-        return Err(lval_err("len called with more than one argument"));
-    }
-    let qexpr = lval_pop(&mut v, 0);
-    match *qexpr {
-        Lval::Qexpr(_) => Ok(lval_num(qexpr.len()? as i64)),
-        _ => Err(lval_err("len called on something that isn't a list")),
+fn builtin_len<'a>(mut v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, BlisprError> {
+    let child_count = v.len()?;
+    match child_count {
+        1 => {
+            let qexpr = lval_pop(&mut v, 0)?;
+            match *qexpr {
+                Lval::Qexpr(_) => Ok(lval_num(qexpr.len()? as i64)),
+                _ => Err(BlisprError::WrongType(
+                    "qexpr".to_string(),
+                    format!("{:?}", qexpr),
+                )),
+            }
+        }
+        _ => Err(BlisprError::NumArguments(1, child_count)),
     }
 }
 
-fn builtin<'a>(mut v: Box<Lval<'a>>, func: &str) -> Result<Box<Lval<'a>>, Box<Lval<'a>>> {
+fn builtin<'a>(mut v: Box<Lval<'a>>, func: &str) -> Result<Box<Lval<'a>>, BlisprError> {
     match func {
         "+" | "-" | "*" | "/" | "%" | "^" | "add" | "sub" | "mul" | "div" | "rem" | "pow"
         | "max" | "min" => builtin_op(v, func),
         "eval" => {
             // Unwrap the containing Sexpr
-            let qexpr = lval_pop(&mut v, 0);
+            let qexpr = lval_pop(&mut v, 0)?;
             builtin_eval(qexpr)
         }
         "join" => builtin_join(v),
         "len" => builtin_len(v),
-        "list" => Ok(builtin_list(v)),
-        _ => Err(lval_err("Unknown function!")),
+        "list" => builtin_list(v),
+        _ => Err(BlisprError::UnknownFunction("func".to_string())),
     }
 }
 
-pub fn lval_eval(mut v: Box<Lval>) -> Result<Box<Lval>, Box<Lval>> {
+pub fn lval_eval(mut v: Box<Lval>) -> Result<Box<Lval>, BlisprError> {
     let child_count;
     match *v {
         Lval::Sexpr(ref mut cells) => {
@@ -186,16 +201,6 @@ pub fn lval_eval(mut v: Box<Lval>) -> Result<Box<Lval>, Box<Lval>> {
             child_count = cells.len();
             for item in cells.iter_mut().take(child_count) {
                 *item = lval_eval(item.clone())?
-            }
-
-            // Error checking
-            // if any is an error, return an Lval::Err
-            for item in cells.iter().take(child_count) {
-                let res = *item.clone();
-                match res {
-                    Lval::Err(s) => return Err(lval_err(s)),
-                    _ => continue,
-                }
             }
         }
         // if it's not a sexpr, we're done
@@ -210,17 +215,20 @@ pub fn lval_eval(mut v: Box<Lval>) -> Result<Box<Lval>, Box<Lval>> {
         Ok(v)
     } else if child_count == 1 {
         // Single expression
-        Ok(lval_pop(&mut v, 0))
+        lval_pop(&mut v, 0)
     } else {
         // Function call
         // Ensure the first element is a Symbol
-        let lfn = lval_pop(&mut v, 0);
+        let lfn = lval_pop(&mut v, 0)?;
         debug!("Calling function {} on {:?}", lfn, v);
         match *lfn {
             Lval::Sym(s) => builtin(v, &s),
             _ => {
                 println!("{}", *lfn);
-                Err(lval_err("S-expression does not start with symbol"))
+                Err(BlisprError::WrongType(
+                    "symbol".to_string(),
+                    format!("{:?}", lfn),
+                ))
             }
         }
     }

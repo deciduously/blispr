@@ -3,6 +3,7 @@ extern crate pest_derive;
 #[macro_use]
 extern crate log;
 
+mod error;
 mod eval;
 mod lval;
 mod parse;
@@ -23,5 +24,8 @@ fn main() {
         }
     };
 
-    repl(print_parsed);
+    if let Err(e) = repl(print_parsed) {
+        eprintln!("Error: {}", e);
+        ::std::process::exit(1)
+    }
 }

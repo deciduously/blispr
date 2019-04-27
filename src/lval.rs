@@ -1,3 +1,4 @@
+use crate::error::BlisprError;
 use std::fmt;
 
 // The recursive types hold their children in one of these bad boys
@@ -7,7 +8,6 @@ type LvalChildren<'a> = Vec<Box<Lval<'a>>>;
 // The main type - all possible Blispr values
 #[derive(Debug, Clone)]
 pub enum Lval<'a> {
-    Err(&'a str),
     Num(i64),
     Sym(&'a str),
     Sexpr(LvalChildren<'a>),
@@ -15,16 +15,16 @@ pub enum Lval<'a> {
 }
 
 impl<'a> Lval<'a> {
-    pub fn as_num(&self) -> Result<i64, Box<Lval<'a>>> {
+    pub fn as_num(&self) -> Result<i64, BlisprError> {
         match *self {
             Lval::Num(n_num) => Ok(n_num),
-            _ => Err(lval_err("Not a number!")),
+            _ => Err(BlisprError::NotANumber),
         }
     }
-    pub fn len(&self) -> Result<usize, Box<Lval<'a>>> {
+    pub fn len(&self) -> Result<usize, BlisprError> {
         match *self {
             Lval::Sexpr(ref children) | Lval::Qexpr(ref children) => Ok(children.len()),
-            _ => Err(lval_err("called len() on a non-containing lval")),
+            _ => Err(BlisprError::NoChildren),
         }
     }
 }
@@ -32,7 +32,6 @@ impl<'a> Lval<'a> {
 impl<'a> fmt::Display for Lval<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Lval::Err(e) => write!(f, "Error: {}", e),
             Lval::Num(n) => write!(f, "{}", n),
             Lval::Sym(s) => write!(f, "{}", s),
             Lval::Sexpr(cell) => write!(f, "({})", lval_expr_print(cell)),
@@ -59,10 +58,6 @@ fn lval_expr_print(cell: &[Box<Lval>]) -> String {
 // You can omit the lifetime annotations when the constructor is passed a reference
 // I included them for consistency
 
-pub fn lval_err<'a>(e_str: &'a str) -> Box<Lval<'a>> {
-    Box::new(Lval::Err(e_str))
-}
-
 pub fn lval_num<'a>(n: i64) -> Box<Lval<'a>> {
     Box::new(Lval::Num(n))
 }
@@ -82,33 +77,32 @@ pub fn lval_qexpr<'a>() -> Box<Lval<'a>> {
 // Manipulating children
 
 // Add lval x to lval::sexpr or lval::qexpr v
-pub fn lval_add<'a>(v: &mut Lval<'a>, x: Box<Lval<'a>>) {
+pub fn lval_add<'a>(v: &mut Lval<'a>, x: Box<Lval<'a>>) -> Result<(), BlisprError> {
     match *v {
-        Lval::Err(_) | Lval::Num(_) | Lval::Sym(_) => {
-            panic!("Tried to add a child to a non-containing lval!")
-        }
         Lval::Sexpr(ref mut children) | Lval::Qexpr(ref mut children) => {
             children.push(x);
         }
+        _ => return Err(BlisprError::NoChildren),
     }
+    Ok(())
 }
 
 // Extract single element of sexpr at index i
-pub fn lval_pop<'a>(v: &mut Lval<'a>, i: usize) -> Box<Lval<'a>> {
+pub fn lval_pop<'a>(v: &mut Lval<'a>, i: usize) -> Result<Box<Lval<'a>>, BlisprError> {
     match *v {
         Lval::Sexpr(ref mut children) | Lval::Qexpr(ref mut children) => {
             let ret = (&children[i]).clone();
             children.remove(i);
-            ret
+            Ok(ret)
         }
-        _ => lval_err("Cannot pop from a non-containing lval!"),
+        _ => Err(BlisprError::NoChildren),
     }
 }
 
 // Add each cell in y to x
-pub fn lval_join<'a>(x: &mut Lval<'a>, mut y: Box<Lval<'a>>) -> Result<(), Box<Lval<'a>>> {
+pub fn lval_join<'a>(x: &mut Lval<'a>, mut y: Box<Lval<'a>>) -> Result<(), BlisprError> {
     while y.len()? > 0 {
-        lval_add(x, lval_pop(&mut y, 0));
+        lval_add(x, lval_pop(&mut y, 0)?)?;
     }
     Ok(())
 }
