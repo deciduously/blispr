@@ -89,9 +89,10 @@ fn builtin_eval<'a>(v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, Box<Lval<'a>>> {
                 let cloned = Box::new(*c.clone());
                 lval_add(&mut new_sexpr, cloned);
             }
+            println!("builtin_eval: {:?}", new_sexpr);
             lval_eval(new_sexpr)
         }
-        _ => Ok(v),
+        _ => Err(lval_err("Tried to eval a non-qexpr")),
     }
 }
 

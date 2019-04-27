@@ -1,7 +1,7 @@
 COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
 WHITESPACE = _{ " " }
 
-num = @{ int ~ ("." ~ digit*)? }
+num = @{ int }
     int = { ("+" | "-")? ~ digit+ }
     digit = { '0'..'9' }
 

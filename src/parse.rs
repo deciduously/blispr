@@ -68,10 +68,13 @@ pub fn repl(print_parsed: bool) {
         match input {
             Ok(line) => {
                 rl.add_history_entry(line.as_ref());
-                let parsed = BlisprParser::parse(Rule::blispr, &line)
-                    .expect("Syntax error!")
-                    .next()
-                    .unwrap();
+                let parsed = match BlisprParser::parse(Rule::blispr, &line) {
+                    Ok(mut iter) => iter.next().unwrap(),
+                    Err(e) => {
+                        println!("Syntax error:\n{}", e);
+                        continue;
+                    }
+                };
                 let lval_ptr = lval_read(parsed);
                 if print_parsed {
                     println!("{}", *lval_ptr);
@@ -80,6 +83,7 @@ pub fn repl(print_parsed: bool) {
                     Ok(r) => r,
                     Err(e) => e,
                 };
+                println!("Debug: {:?}", res);
                 println!("{}", res);
             }
             Err(ReadlineError::Interrupted) => {

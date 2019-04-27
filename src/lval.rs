@@ -75,7 +75,7 @@ pub fn lval_qexpr<'a>() -> Box<Lval<'a>> {
 
 // Manipulating children
 
-// Add lval x to lval::sexpr v
+// Add lval x to lval::sexpr or lval::qexpr v
 pub fn lval_add<'a>(v: &mut Lval<'a>, x: Box<Lval<'a>>) {
     match *v {
         Lval::Err(_) | Lval::Num(_) | Lval::Sym(_) => {

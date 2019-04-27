@@ -51,3 +51,5 @@ blispr> list 1 2 3
 ```
 
 ...that's it!  `eval` and `join` are coming, it's gonna be off the chain.
+
+Only accepts integers for now, decimal points in numbers are a syntax error.
