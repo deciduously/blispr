@@ -166,6 +166,24 @@ fn builtin_head<'a>(mut v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, BlisprError> 
     }
 }
 
+// Return everything but the last element of a qexpr
+fn builtin_init<'a>(mut v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, BlisprError> {
+    let qexpr = lval_pop(&mut v, 0)?;
+    match *qexpr {
+        Lval::Qexpr(ref children) => {
+            let mut ret = lval_qexpr();
+            for i in 0..children.len() - 1 {
+                lval_add(&mut ret, children[i].clone())?;
+            }
+            Ok(ret)
+        }
+        _ => Err(BlisprError::WrongType(
+            "qexpr".to_string(),
+            format!("{:?}", qexpr),
+        )),
+    }
+}
+
 // Join the children into one qexpr
 fn builtin_join<'a>(mut v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, BlisprError> {
     let mut ret = lval_qexpr();
@@ -250,6 +268,7 @@ fn builtin<'a>(v: Box<Lval<'a>>, func: &str) -> Result<Box<Lval<'a>>, BlisprErro
         "cons" => builtin_cons(v),
         "eval" => builtin_eval(v),
         "head" => builtin_head(v),
+        "init" => builtin_init(v),
         "join" => builtin_join(v),
         "len" => builtin_len(v),
         "list" => builtin_list(v),

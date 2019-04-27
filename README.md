@@ -85,6 +85,8 @@ blispr> tail {1 2 3}
 {2 3}
 blispr> cons 3 {4 5}
 {3 4 5}
+blispr> init {1 2 3 4}
+{1 2 3}
 ```
 
 ...that's it!
