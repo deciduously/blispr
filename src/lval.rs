@@ -82,7 +82,6 @@ pub fn lval_add<'a>(v: &mut Lval<'a>, x: Box<Lval<'a>>) {
             panic!("Tried to add a child to a non-containing lval!")
         }
         Lval::Sexpr(ref mut children) | Lval::Qexpr(ref mut children) => {
-            debug!("lval_add: Adding {:?} to {:?}", x, children);
             children.push(x);
         }
     }

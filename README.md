@@ -43,38 +43,25 @@ You can enable overly verbose debug logging with `$ RUST_LOG=blispr=debug cargo 
 
 ```
 blispr> eval (list + 1 2)
- DEBUG blispr::lval  > lval_add: Adding Sym("eval") to []
- DEBUG blispr::lval  > lval_add: Adding Sym("list") to []
- DEBUG blispr::lval  > lval_add: Adding Sym("+") to [Sym("list")]
- DEBUG blispr::lval  > lval_add: Adding Num(1) to [Sym("list"), Sym("+")]
- DEBUG blispr::lval  > lval_add: Adding Num(2) to [Sym("list"), Sym("+"), Num(1)]
- DEBUG blispr::lval  > lval_add: Adding Sexpr([Sym("list"), Sym("+"), Num(1), Num(2)]) to [Sym("eval")]
- DEBUG blispr::eval  > lval_eval: Sexpr([Sym("eval"), Sexpr([Sym("list"), Sym("+"), Num(1), Num(2)])])
- DEBUG blispr::eval  > lval_eval: Non-sexpr: Sym("eval")
- DEBUG blispr::eval  > lval_eval: Sexpr([Sym("list"), Sym("+"), Num(1), Num(2)])
- DEBUG blispr::eval  > lval_eval: Non-sexpr: Sym("list")
- DEBUG blispr::eval  > lval_eval: Non-sexpr: Sym("+")
- DEBUG blispr::eval  > lval_eval: Non-sexpr: Num(1)
- DEBUG blispr::eval  > lval_eval: Non-sexpr: Num(2)
- DEBUG blispr::eval  > Calling function list on Sexpr([Sym("+"), Num(1), Num(2)])
- DEBUG blispr::eval  > Building list from [Sym("+"), Num(1), Num(2)]
- DEBUG blispr::lval  > lval_add: Adding Sym("+") to []
- DEBUG blispr::lval  > lval_add: Adding Num(1) to [Sym("+")]
- DEBUG blispr::lval  > lval_add: Adding Num(2) to [Sym("+"), Num(1)]
- DEBUG blispr::eval  > Calling function eval on Sexpr([Qexpr([Sym("+"), Num(1), Num(2)])])
- DEBUG blispr::lval  > lval_add: Adding Sym("+") to []
- DEBUG blispr::lval  > lval_add: Adding Num(1) to [Sym("+")]
- DEBUG blispr::lval  > lval_add: Adding Num(2) to [Sym("+"), Num(1)]
- DEBUG blispr::eval  > builtin_eval: Sexpr([Sym("+"), Num(1), Num(2)])
- DEBUG blispr::eval  > lval_eval: Sexpr([Sym("+"), Num(1), Num(2)])
- DEBUG blispr::eval  > lval_eval: Non-sexpr: Sym("+")
- DEBUG blispr::eval  > lval_eval: Non-sexpr: Num(1)
- DEBUG blispr::eval  > lval_eval: Non-sexpr: Num(2)
- DEBUG blispr::eval  > Calling function + on Sexpr([Num(1), Num(2)])
- DEBUG blispr::eval  > Add 1 and 2
+ DEBUG blispr::eval > lval_eval: Sexpr([Sym("eval"), Sexpr([Sym("list"), Sym("+"), Num(1), Num(2)])])
+ DEBUG blispr::eval > lval_eval: Non-sexpr: Sym("eval")
+ DEBUG blispr::eval > lval_eval: Sexpr([Sym("list"), Sym("+"), Num(1), Num(2)])
+ DEBUG blispr::eval > lval_eval: Non-sexpr: Sym("list")
+ DEBUG blispr::eval > lval_eval: Non-sexpr: Sym("+")
+ DEBUG blispr::eval > lval_eval: Non-sexpr: Num(1)
+ DEBUG blispr::eval > lval_eval: Non-sexpr: Num(2)
+ DEBUG blispr::eval > Calling function list on Sexpr([Sym("+"), Num(1), Num(2)])
+ DEBUG blispr::eval > Building list from [Sym("+"), Num(1), Num(2)]
+ DEBUG blispr::eval > Calling function eval on Sexpr([Qexpr([Sym("+"), Num(1), Num(2)])])
+ DEBUG blispr::eval > builtin_eval: Sexpr([Sym("+"), Num(1), Num(2)])
+ DEBUG blispr::eval > lval_eval: Sexpr([Sym("+"), Num(1), Num(2)])
+ DEBUG blispr::eval > lval_eval: Non-sexpr: Sym("+")
+ DEBUG blispr::eval > lval_eval: Non-sexpr: Num(1)
+ DEBUG blispr::eval > lval_eval: Non-sexpr: Num(2)
+ DEBUG blispr::eval > Calling function + on Sexpr([Num(1), Num(2)])
+ DEBUG blispr::eval > Add 1 and 2
  DEBUG blispr::parse > Result: Num(3)
 3
-blispr> 
 ```
 
 ## Currently implemented
