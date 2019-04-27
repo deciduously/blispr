@@ -65,27 +65,24 @@ pub fn lval_sym<'a>(s: &'a str) -> Box<Lval<'a>> {
     Box::new(Lval::Sym(s))
 }
 
-pub fn lval_sexpr<'a>(contents: Vec<Box<Lval<'a>>>) -> Box<Lval<'a>> {
-    Box::new(Lval::Sexpr(contents))
+pub fn lval_sexpr<'a>() -> Box<Lval<'a>> {
+    Box::new(Lval::Sexpr(Vec::new()))
 }
 
-pub fn lval_qexpr<'a>(contents: Vec<Box<Lval<'a>>>) -> Box<Lval<'a>> {
-    Box::new(Lval::Qexpr(contents))
+pub fn lval_qexpr<'a>() -> Box<Lval<'a>> {
+    Box::new(Lval::Qexpr(Vec::new()))
 }
 
 // Manipulating children
 
 // Add lval x to lval::sexpr v
-// Takes ownership of both which drops them, and returns a brand new Box<Lval> instead of mutating v
-pub fn lval_add<'a>(v: Box<Lval<'a>>, x: Box<Lval<'a>>) -> Box<Lval<'a>> {
+pub fn lval_add<'a>(v: &mut Lval<'a>, x: Box<Lval<'a>>) {
     match *v {
         Lval::Err(_) | Lval::Num(_) | Lval::Sym(_) => {
             panic!("Tried to add a child to a non-containing lval!")
         }
-        Lval::Sexpr(ref children) | Lval::Qexpr(ref children) => {
-            let mut new_children = children.clone();
-            new_children.push(x);
-            Box::new(Lval::Sexpr(new_children))
+        Lval::Sexpr(ref mut children) | Lval::Qexpr(ref mut children) => {
+            children.push(x);
         }
     }
 }

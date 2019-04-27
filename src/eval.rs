@@ -1,4 +1,4 @@
-use crate::lval::{lval_err, lval_num, lval_pop, lval_qexpr, lval_sexpr, Lval};
+use crate::lval::{lval_add, lval_err, lval_num, lval_pop, lval_qexpr, lval_sexpr, Lval};
 use std::ops::{Add, Div, Mul, Rem, Sub};
 
 macro_rules! apply_binop {
@@ -80,11 +80,17 @@ fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Result<Box<Lval<'a>>, Box
     Ok(x)
 }
 
-// WHY IS {+ 1 3} a sa command running through this?!
 // Evaluate qexpr as a sexpr
 fn builtin_eval<'a>(v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, Box<Lval<'a>>> {
     match *v {
-        Lval::Qexpr(ref children) => lval_eval(lval_sexpr(children.to_vec())),
+        Lval::Qexpr(ref children) => {
+            let mut new_sexpr = lval_sexpr();
+            for c in children {
+                let cloned = Box::new(*c.clone());
+                lval_add(&mut new_sexpr, cloned);
+            }
+            lval_eval(new_sexpr)
+        }
         _ => Ok(v),
     }
 }
@@ -103,7 +109,14 @@ fn builtin_eval<'a>(v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, Box<Lval<'a>>> {
 // make sexpr into a qexpr
 fn builtin_list<'a>(v: Box<Lval<'a>>) -> Box<Lval<'a>> {
     match *v {
-        Lval::Sexpr(ref children) => lval_qexpr(children.to_vec()),
+        Lval::Sexpr(ref children) => {
+            let mut new_qexpr = lval_qexpr();
+            for c in children {
+                let cloned = Box::new(*c.clone());
+                lval_add(&mut new_qexpr, cloned);
+            }
+            new_qexpr
+        }
         _ => v,
     }
 }
