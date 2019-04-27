@@ -68,39 +68,17 @@ blispr>
 
 ## Currently implemented
 
-* Operators: `+ | add`, `- | sub`, `* | mul`, `/ | div`, `% | rem`, `^ | pow`, `max`, `min`
-
-* `list`:
+Operators: `+ | add`, `- | sub`, `* | mul`, `/ | div`, `% | rem`, `^ | pow`, `max`, `min`
 
 ```
 blispr> list 1 2 3
 {1 2 3}
-```
-
-* `eval`:
-
-```
 blispr> eval {+ 1 2}
 3
-```
-
-* `join`:
-
-```
 blispr> join {1 2} {3 4}
 {1 2 3 4}
-```
-
-* `len`:
-
-```
 blispr> len {1 2 3 4 5}
 5
-```
-
-* `head`/`tail`:
-
-```
 blispr> head {1 2 3}
 1
 blispr> tail {1 2 3}
