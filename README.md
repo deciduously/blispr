@@ -19,8 +19,8 @@ $ cargo run
      Running `target/debug/blispr`
 Blispr v0.0.1
 Press Ctrl-C or Ctrl-D to exit
-blispr> (add (* 8 7/* comments too! */ (div 7 8) (- 2 3 1)) (max 8 2 (min 8 7)))
-2
+blispr> (add (* 8 7/* comments too! */ (div 65 5) (- 21 3 11)) (max 8 2 (min 3 76)))
+5104
 blispr>
 ```
 
@@ -77,6 +77,13 @@ blispr> list 1 2 3
 {1 2 3}
 ```
 
-...that's it!  `eval` and `join` are coming, it's gonna be off the chain.
+* `eval`:
+
+```
+blispr> eval (list + 1 2)
+3
+```
+
+...that's it!
 
 Only accepts integers for now, decimal points in numbers are a syntax error.
