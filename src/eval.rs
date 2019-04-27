@@ -132,6 +132,7 @@ fn builtin_head<'a>(mut v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, BlisprError> 
             if children.is_empty() {
                 return Err(BlisprError::EmptyList);
             }
+            debug!("Returning the first element of {:?}", children);
             Ok(children[0].clone())
         }
         _ => Err(BlisprError::WrongType(
@@ -183,7 +184,10 @@ fn builtin_len<'a>(mut v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, BlisprError> {
         1 => {
             let qexpr = lval_pop(&mut v, 0)?;
             match *qexpr {
-                Lval::Qexpr(_) => Ok(lval_num(qexpr.len()? as i64)),
+                Lval::Qexpr(_) => {
+                    debug!("Returning length of {:?}", qexpr);
+                    Ok(lval_num(qexpr.len()? as i64))
+                }
                 _ => Err(BlisprError::WrongType(
                     "qexpr".to_string(),
                     format!("{:?}", qexpr),
@@ -196,6 +200,7 @@ fn builtin_len<'a>(mut v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, BlisprError> {
 
 fn builtin_tail<'a>(mut v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, BlisprError> {
     let mut qexpr = lval_pop(&mut v, 0)?;
+    debug!("Returning tail of {:?}", qexpr);
     match *qexpr {
         Lval::Qexpr(ref mut children) => {
             if children.is_empty() {
