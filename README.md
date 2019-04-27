@@ -24,7 +24,7 @@ blispr> (add (* 8 7/* comments too! */ (div 65 5) (- 21 3 11)) (max 8 2 (min 3 7
 blispr>
 ```
 
-It uses `rustyline` as a readline alternative which will save history to `./.blisp-history.txt`.
+It uses [`rustyline`](https://github.com/kkawakam/rustyline) as a readline alternative which will save history to `./.blispr-history.txt`.  See that repo for all supported options.
 
 You can pass `-p` at runtime (`cargo run -- -p` or `blispr -p`) to display the parsed input, pre-eval alongside the result:
 
