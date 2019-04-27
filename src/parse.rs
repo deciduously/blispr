@@ -75,6 +75,7 @@ pub fn repl(print_parsed: bool) {
                         continue;
                     }
                 };
+                debug!("{}", parsed);
                 let lval_ptr = lval_read(parsed);
                 if print_parsed {
                     println!("{}", *lval_ptr);
