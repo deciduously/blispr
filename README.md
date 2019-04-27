@@ -80,22 +80,31 @@ blispr> list 1 2 3
 * `eval`:
 
 ```
-blispr> eval (list + 1 2)
+blispr> eval {+ 1 2}
 3
 ```
 
 * `join`:
 
 ```
-blispr> join (list 1 2) (list 3 4)
+blispr> join {1 2} {3 4}
 {1 2 3 4}
 ```
 
 * `len`:
 
 ```
-blispr> len (list 1 2 3 4 5)
+blispr> len {1 2 3 4 5}
 5
+```
+
+* `head`/`tail`:
+
+```
+blispr> head {1 2 3}
+1
+blispr> tail {1 2 3}
+{2 3}
 ```
 
 ...that's it!

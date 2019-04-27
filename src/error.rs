@@ -3,6 +3,7 @@ use std::{error::Error, fmt};
 #[derive(Debug)]
 pub enum BlisprError {
     DivideByZero,
+    EmptyList,
     NoChildren,
     NotANumber,
     NumArguments(usize, usize),
@@ -15,6 +16,7 @@ impl fmt::Display for BlisprError {
         use BlisprError::*;
         match self {
             DivideByZero => write!(f, "Divide by zero"),
+            EmptyList => write!(f, "Empty list"),
             NoChildren => write!(f, "Lval has no children"),
             NotANumber => write!(f, "NaN"),
             NumArguments(expected, received) => write!(
@@ -32,4 +34,4 @@ impl fmt::Display for BlisprError {
     }
 }
 
-impl<'a> Error for BlisprError {}
+impl Error for BlisprError {}

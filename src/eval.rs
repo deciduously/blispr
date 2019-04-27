@@ -11,7 +11,7 @@ macro_rules! apply_binop {
                 $x = lval_num(x_num.$op(y_num));
                 continue;
             }
-            _ => return Err(BlisprError::NotANumber), // TODO error type
+            _ => return Err(BlisprError::NotANumber),
         }
     };
 }
@@ -102,8 +102,9 @@ fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> Result<Box<Lval<'a>>, Bli
 }
 
 // Evaluate qexpr as a sexpr
-fn builtin_eval<'a>(v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, BlisprError> {
-    match *v {
+fn builtin_eval<'a>(mut v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, BlisprError> {
+    let qexpr = lval_pop(&mut v, 0)?;
+    match *qexpr {
         Lval::Qexpr(ref children) => {
             let mut new_sexpr = lval_sexpr();
             for c in children {
@@ -114,12 +115,29 @@ fn builtin_eval<'a>(v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, BlisprError> {
             lval_eval(new_sexpr)
         }
         _ => {
-            debug!("Failed builtin_eval on {:?}", v);
+            debug!("Failed builtin_eval on {:?}", qexpr);
             Err(BlisprError::WrongType(
                 "qexpr".to_string(),
-                format!("{:?}", v),
+                format!("{:?}", qexpr),
             ))
         }
+    }
+}
+
+// Return the first element of a qexpr
+fn builtin_head<'a>(mut v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, BlisprError> {
+    let mut qexpr = lval_pop(&mut v, 0)?;
+    match *qexpr {
+        Lval::Qexpr(ref mut children) => {
+            if children.is_empty() {
+                return Err(BlisprError::EmptyList);
+            }
+            Ok(children[0].clone())
+        }
+        _ => Err(BlisprError::WrongType(
+            "qexpr".to_string(),
+            format!("{:?}", qexpr),
+        )),
     }
 }
 
@@ -176,18 +194,36 @@ fn builtin_len<'a>(mut v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, BlisprError> {
     }
 }
 
-fn builtin<'a>(mut v: Box<Lval<'a>>, func: &str) -> Result<Box<Lval<'a>>, BlisprError> {
+fn builtin_tail<'a>(mut v: Box<Lval<'a>>) -> Result<Box<Lval<'a>>, BlisprError> {
+    let mut qexpr = lval_pop(&mut v, 0)?;
+    match *qexpr {
+        Lval::Qexpr(ref mut children) => {
+            if children.is_empty() {
+                return Err(BlisprError::EmptyList);
+            }
+            let mut ret = lval_qexpr();
+            for c in &children[1..] {
+                lval_add(&mut ret, c.clone())?;
+            }
+            Ok(ret)
+        }
+        _ => Err(BlisprError::WrongType(
+            "qexpr".to_string(),
+            format!("{:?}", qexpr),
+        )),
+    }
+}
+
+fn builtin<'a>(v: Box<Lval<'a>>, func: &str) -> Result<Box<Lval<'a>>, BlisprError> {
     match func {
         "+" | "-" | "*" | "/" | "%" | "^" | "add" | "sub" | "mul" | "div" | "rem" | "pow"
         | "max" | "min" => builtin_op(v, func),
-        "eval" => {
-            // Unwrap the containing Sexpr
-            let qexpr = lval_pop(&mut v, 0)?;
-            builtin_eval(qexpr)
-        }
+        "eval" => builtin_eval(v),
+        "head" => builtin_head(v),
         "join" => builtin_join(v),
         "len" => builtin_len(v),
         "list" => builtin_list(v),
+        "tail" => builtin_tail(v),
         _ => Err(BlisprError::UnknownFunction("func".to_string())),
     }
 }

@@ -59,7 +59,7 @@ pub fn repl(print_parsed: bool) -> Result<(), BlisprError> {
     }
 
     let mut rl = Editor::<()>::new();
-    if rl.load_history("./.blisp-history.txt").is_err() {
+    if rl.load_history("./.blispr-history.txt").is_err() {
         println!("No history found.");
     }
 
@@ -102,6 +102,6 @@ pub fn repl(print_parsed: bool) -> Result<(), BlisprError> {
             }
         }
     }
-    rl.save_history("./.blisp-history.txt").unwrap();
+    rl.save_history("./.blispr-history.txt").unwrap();
     Ok(())
 }
