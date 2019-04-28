@@ -1,4 +1,5 @@
-use std::{error::Error, fmt};
+use crate::lval::Lval;
+use std::fmt;
 
 #[derive(Debug)]
 pub enum BlisprError {
@@ -10,6 +11,8 @@ pub enum BlisprError {
     WrongType(String, String),
     UnknownFunction(String),
 }
+
+pub type BlisprResult<'a> = Result<Box<Lval<'a>>, BlisprError>;
 
 impl fmt::Display for BlisprError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -34,4 +37,5 @@ impl fmt::Display for BlisprError {
     }
 }
 
-impl Error for BlisprError {}
+// unneeded?
+//impl Error for BlisprError {}

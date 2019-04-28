@@ -1,10 +1,12 @@
 use crate::{
     error::BlisprError,
     eval::lval_eval,
+    lenv::Lenv,
     lval::{lval_add, lval_num, lval_qexpr, lval_sexpr, lval_sym, Lval},
 };
 use pest::{iterators::Pair, Parser};
 use rustyline::{error::ReadlineError, Editor};
+use std::rc::Rc;
 
 #[cfg(debug_assertions)]
 const _GRAMMAR: &str = include_str!("blispr.pest");
@@ -61,25 +63,29 @@ pub fn repl() -> Result<(), BlisprError> {
         println!("No history found.");
     }
 
+    //let mut program = String::new();
+    // let e = Rc::new(Lenv::new());
     loop {
         let input = rl.readline("blispr> ");
+
         match input {
             Ok(line) => {
                 rl.add_history_entry(line.as_ref());
+                // read last line from program? because it lives as long as the env
+
                 let parsed = match BlisprParser::parse(Rule::blispr, &line) {
                     Ok(mut iter) => iter.next().unwrap(),
-                    Err(e) => {
-                        println!("Syntax error:\n{}", e);
+                    Err(err) => {
+                        println!("Syntax error:\n{}", err);
                         continue;
                     }
                 };
                 debug!("{}", parsed);
                 let lval_ptr = lval_read(parsed)?;
-                debug!("Parsed: {}", *lval_ptr);
-
-                match lval_eval(lval_ptr) {
+                debug!("Parsed: {:?}", *lval_ptr);
+                let env = Rc::new(Lenv::new()); // this is going to be a problem - it bootstraps on every line!
+                match lval_eval(env, lval_ptr) {
                     Ok(r) => {
-                        debug!("Result: {:?}", r);
                         println!("{}", r);
                     }
                     Err(e) => eprintln!("Error: {}", e),

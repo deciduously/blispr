@@ -5,6 +5,7 @@ extern crate log;
 
 mod error;
 mod eval;
+mod lenv;
 mod lval;
 mod parse;
 

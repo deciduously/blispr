@@ -1,13 +1,18 @@
-use crate::error::BlisprError;
-use std::fmt;
+use crate::{
+    error::{BlisprError, BlisprResult},
+    lenv::Lenv,
+};
+use std::{fmt, rc::Rc};
 
 // The recursive types hold their children in one of these bad boys
 // TODO Should this be a VecDeque or a LinkedList instead?
 type LvalChildren<'a> = Vec<Box<Lval<'a>>>;
+pub type LBuiltin<'a> = fn(Rc<Lenv<'a>>, Box<Lval<'a>>) -> BlisprResult<'a>;
 
 // The main type - all possible Blispr values
 #[derive(Debug, Clone)]
 pub enum Lval<'a> {
+    Fun(LBuiltin<'a>),
     Num(i64),
     Sym(&'a str),
     Sexpr(LvalChildren<'a>),
@@ -32,10 +37,35 @@ impl<'a> Lval<'a> {
 impl<'a> fmt::Display for Lval<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            Lval::Fun(_) => write!(f, "<function>"),
             Lval::Num(n) => write!(f, "{}", n),
             Lval::Sym(s) => write!(f, "{}", s),
             Lval::Sexpr(cell) => write!(f, "({})", lval_expr_print(cell)),
             Lval::Qexpr(cell) => write!(f, "{{{}}}", lval_expr_print(cell)),
+        }
+    }
+}
+
+impl<'a> PartialEq for Lval<'a> {
+    fn eq(&self, other: &Lval<'a>) -> bool {
+        match self {
+            Lval::Fun(_) => false, // for now?  how to compare functions
+            Lval::Num(contents) => match other {
+                Lval::Num(other_contents) => contents == other_contents,
+                _ => false,
+            },
+            Lval::Sym(contents) => match other {
+                Lval::Sym(other_contents) => contents == other_contents,
+                _ => false,
+            },
+            Lval::Sexpr(contents) => match other {
+                Lval::Sexpr(other_contents) => contents == other_contents,
+                _ => false,
+            },
+            Lval::Qexpr(contents) => match other {
+                Lval::Qexpr(other_contents) => contents == other_contents,
+                _ => false,
+            },
         }
     }
 }
@@ -57,6 +87,10 @@ fn lval_expr_print(cell: &[Box<Lval>]) -> String {
 
 // You can omit the lifetime annotations when the constructor is passed a reference
 // I included them for consistency
+
+pub fn lval_fun<'a>(f: LBuiltin<'a>) -> Box<Lval<'a>> {
+    Box::new(Lval::Fun(f))
+}
 
 pub fn lval_num<'a>(n: i64) -> Box<Lval<'a>> {
     Box::new(Lval::Num(n))
@@ -88,7 +122,7 @@ pub fn lval_add<'a>(v: &mut Lval<'a>, x: Box<Lval<'a>>) -> Result<(), BlisprErro
 }
 
 // Extract single element of sexpr at index i
-pub fn lval_pop<'a>(v: &mut Lval<'a>, i: usize) -> Result<Box<Lval<'a>>, BlisprError> {
+pub fn lval_pop<'a>(v: &mut Lval<'a>, i: usize) -> BlisprResult<'a> {
     match *v {
         Lval::Sexpr(ref mut children) | Lval::Qexpr(ref mut children) => {
             let ret = (&children[i]).clone();

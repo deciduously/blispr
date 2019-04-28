@@ -5,7 +5,10 @@ num = @{ int }
     int = { ("+" | "-")? ~ digit+ }
     digit = { '0'..'9' }
 
-symbol = @{ "+" | "-" | "*" | "/" | "%" | "^" | "add" | "sub" | "mul" | "div" | "rem" | "pow" | "max" | "min" | "list" | "eval" | "join" | "len" | "head" | "tail" | "cons" | "init" }
+symbol = @{ (letter | digit | "_" | arithmetic_ops | "\\" | comparison_ops | "&")+ }
+    letter = { 'a' .. 'z' | 'A' .. 'Z' }
+    arithmetic_ops = { "+" | "-" | "*" | "/" | "%" | "^" }
+    comparison_ops = { "=" | "<" | ">" | "!" }
 
 sexpr = { "(" ~ expr* ~ ")" }
 
