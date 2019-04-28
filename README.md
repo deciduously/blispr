@@ -14,7 +14,7 @@ This is a rewrite of the Lisp built in the book [Build Your Own Lisp](http://www
 $ git clone https://github.com/deciduously/blispr
 $ cd blispr
 $ cargo run
-   Compiling blispr v0.0.1 (file:///home/yourstruly/code/blispr)
+   Compiling blispr v0.0.1 (/home/yourstruly/code/blispr)
     Finished dev [unoptimized + debuginfo] target(s) in 0.92s
      Running `target/debug/blispr`
 Blispr v0.0.1
@@ -26,44 +26,45 @@ blispr>
 
 It uses [`rustyline`](https://github.com/kkawakam/rustyline) as a readline alternative which will save history to `./.blispr-history.txt`.  See that repo for all supported options.
 
-You can pass `-p` at runtime (`cargo run -- -p` or `blispr -p`) to display the parsed input, pre-eval alongside the result:
-
-```blispr
-$ cargo run -- -p
+You can pass `-d` at runtime (`cargo run -- -d` or `blispr -d`) to enable overly verbose debug output:
+```
+$ cargo run -- -d
+   Compiling blispr v0.0.1 (/home/yourstruly/code/blispr)
+    Finished dev [unoptimized + debuginfo] target(s) in 1.21s
+     Running `target/debug/blispr -d`
 Blispr v0.0.1
 Press Ctrl-C or Ctrl-D to exit
-Debug mode enabled
-blispr> + /* apes?! */ 1    2
-(+ 1 2)
-3
-blispr>
-```
-
-You can enable overly verbose debug logging with `$ RUST_LOG=blispr=debug cargo run`:
-
-```
-blispr> eval (list + 1 2)
- DEBUG blispr::parse > blispr(0, 17, [expr(0, 4, [symbol(0, 4)]), expr(5, 17, [sexpr(5, 17, [expr(6, 10, [symbol(6, 10)]), expr(11, 12, [symbol(11, 12)]), expr(13, 14, [num(13, 14)]), expr(15, 16, [num(15, 16)])])]), EOI(17, 17)])
- DEBUG blispr::eval  > lval_eval: Sexpr([Sym("eval"), Sexpr([Sym("list"), Sym("+"), Num(1), Num(2)])])
+ DEBUG blispr::parse > Debug mode enabled
+blispr> eval (list + 3 4 (* 6 2)/* or whatever */ )
+ DEBUG blispr::parse > blispr(0, 44, [expr(0, 4, [symbol(0, 4)]), expr(5, 43, [sexpr(5, 43, [expr(6, 10, [symbol(6, 10)]), expr(11, 12, [symbol(11, 12)]), expr(13, 14, [num(13, 14)]), expr(15, 16, [num(15, 16)]), expr(17, 24, [sexpr(17, 24, [expr(18, 19, [symbol(18, 19)]), expr(20, 21, [num(20, 21)]), expr(22, 23, [num(22, 23)])])])])]), EOI(44, 44)])
+ DEBUG blispr::parse > Parsed: (eval (list + 3 4 (* 6 2)))
+ DEBUG blispr::eval  > lval_eval: Sexpr([Sym("eval"), Sexpr([Sym("list"), Sym("+"), Num(3), Num(4), Sexpr([Sym("*"), Num(6), Num(2)])])])
  DEBUG blispr::eval  > lval_eval: Non-sexpr: Sym("eval")
- DEBUG blispr::eval  > lval_eval: Sexpr([Sym("list"), Sym("+"), Num(1), Num(2)])
+ DEBUG blispr::eval  > lval_eval: Sexpr([Sym("list"), Sym("+"), Num(3), Num(4), Sexpr([Sym("*"), Num(6), Num(2)])])
  DEBUG blispr::eval  > lval_eval: Non-sexpr: Sym("list")
  DEBUG blispr::eval  > lval_eval: Non-sexpr: Sym("+")
- DEBUG blispr::eval  > lval_eval: Non-sexpr: Num(1)
+ DEBUG blispr::eval  > lval_eval: Non-sexpr: Num(3)
+ DEBUG blispr::eval  > lval_eval: Non-sexpr: Num(4)
+ DEBUG blispr::eval  > lval_eval: Sexpr([Sym("*"), Num(6), Num(2)])
+ DEBUG blispr::eval  > lval_eval: Non-sexpr: Sym("*")
+ DEBUG blispr::eval  > lval_eval: Non-sexpr: Num(6)
  DEBUG blispr::eval  > lval_eval: Non-sexpr: Num(2)
- DEBUG blispr::eval  > Calling function list on Sexpr([Sym("+"), Num(1), Num(2)])
- DEBUG blispr::eval  > Building list from [Sym("+"), Num(1), Num(2)]
- DEBUG blispr::eval  > Calling function eval on Sexpr([Qexpr([Sym("+"), Num(1), Num(2)])])
- DEBUG blispr::eval  > builtin_eval: Sexpr([Sym("+"), Num(1), Num(2)])
- DEBUG blispr::eval  > lval_eval: Sexpr([Sym("+"), Num(1), Num(2)])
+ DEBUG blispr::eval  > Calling function * on Sexpr([Num(6), Num(2)])
+ DEBUG blispr::eval  > Multiply 6 and 2
+ DEBUG blispr::eval  > Calling function list on Sexpr([Sym("+"), Num(3), Num(4), Num(12)])
+ DEBUG blispr::eval  > Building list from [Sym("+"), Num(3), Num(4), Num(12)]
+ DEBUG blispr::eval  > Calling function eval on Sexpr([Qexpr([Sym("+"), Num(3), Num(4), Num(12)])])
+ DEBUG blispr::eval  > builtin_eval: Sexpr([Sym("+"), Num(3), Num(4), Num(12)])
+ DEBUG blispr::eval  > lval_eval: Sexpr([Sym("+"), Num(3), Num(4), Num(12)])
  DEBUG blispr::eval  > lval_eval: Non-sexpr: Sym("+")
- DEBUG blispr::eval  > lval_eval: Non-sexpr: Num(1)
- DEBUG blispr::eval  > lval_eval: Non-sexpr: Num(2)
- DEBUG blispr::eval  > Calling function + on Sexpr([Num(1), Num(2)])
- DEBUG blispr::eval  > Add 1 and 2
- DEBUG blispr::parse > Result: Num(3)
-3
-blispr> 
+ DEBUG blispr::eval  > lval_eval: Non-sexpr: Num(3)
+ DEBUG blispr::eval  > lval_eval: Non-sexpr: Num(4)
+ DEBUG blispr::eval  > lval_eval: Non-sexpr: Num(12)
+ DEBUG blispr::eval  > Calling function + on Sexpr([Num(3), Num(4), Num(12)])
+ DEBUG blispr::eval  > Add 3 and 4
+ DEBUG blispr::eval  > Add 7 and 12
+ DEBUG blispr::parse > Result: Num(19)
+19
 ```
 
 ## Currently implemented

@@ -51,12 +51,10 @@ fn lval_read(parsed: Pair<Rule>) -> Result<Box<Lval>, BlisprError> {
     }
 }
 
-pub fn repl(print_parsed: bool) -> Result<(), BlisprError> {
+pub fn repl() -> Result<(), BlisprError> {
     println!("Blispr v0.0.1");
     println!("Press Ctrl-C or Ctrl-D to exit");
-    if print_parsed {
-        println!("Debug mode enabled");
-    }
+    debug!("Debug mode enabled");
 
     let mut rl = Editor::<()>::new();
     if rl.load_history("./.blispr-history.txt").is_err() {
@@ -77,9 +75,8 @@ pub fn repl(print_parsed: bool) -> Result<(), BlisprError> {
                 };
                 debug!("{}", parsed);
                 let lval_ptr = lval_read(parsed)?;
-                if print_parsed {
-                    println!("{}", *lval_ptr);
-                }
+                debug!("Parsed: {}", *lval_ptr);
+
                 match lval_eval(lval_ptr) {
                     Ok(r) => {
                         debug!("Result: {:?}", r);

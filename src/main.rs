@@ -11,20 +11,26 @@ mod parse;
 use parse::repl;
 
 fn main() {
-    pretty_env_logger::init();
-    // set "-p" to also print out the parsed blipsr, pre-eval
+    // set "-d" to enable debug! log level
     // first check if we have a flag at all
-    let print_parsed = {
+    let debug = {
         let args = &::std::env::args().collect::<Vec<String>>();
 
         if args.len() == 1 {
             false
         } else {
-            args[1] == "-p"
+            args[1] == "-d"
         }
     };
 
-    if let Err(e) = repl(print_parsed) {
+    // enable debug output if needed
+    if debug {
+        ::std::env::set_var("RUST_LOG", "blispr=debug");
+    }
+
+    pretty_env_logger::init();
+
+    if let Err(e) = repl() {
         eprintln!("Error: {}", e);
         ::std::process::exit(1)
     }
