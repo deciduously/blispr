@@ -12,22 +12,20 @@ mod lval;
 mod parse;
 
 use parse::repl;
+use structopt::StructOpt;
+
+#[derive(StructOpt, Debug)]
+#[structopt(name = "blispr")]
+struct Opt {
+    /// debug mode
+    #[structopt(short = "d", long = "debug")]
+    debug: bool,
+}
 
 fn main() {
-    // set "-d" to enable debug! log level
-    // first check if we have a flag at all
-    let debug = {
-        let args = &::std::env::args().collect::<Vec<String>>();
-
-        if args.len() == 1 {
-            false
-        } else {
-            args[1] == "-d"
-        }
-    };
-
+    let opt = Opt::from_args();
     // enable debug output if needed
-    if debug {
+    if opt.debug {
         ::std::env::set_var("RUST_LOG", "blispr=debug");
     }
 

@@ -26,7 +26,8 @@ blispr>
 
 It uses [`rustyline`](https://github.com/kkawakam/rustyline) as a readline alternative which will save history to `./.blispr-history.txt`.  See that repo for all supported options.
 
-You can pass `-d` at runtime (`cargo run -- -d` or `blispr -d`) to enable overly verbose debug output:
+You can pass `-d` or `--debug` at runtime (`cargo run -- -d` or `blispr -d`) to enable overly verbose debug output:
+
 ```
 ± |master U:8 ?:1 ✗| → cargo run -- -d
     Finished dev [unoptimized + debuginfo] target(s) in 0.04s
