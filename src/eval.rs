@@ -152,13 +152,16 @@ pub fn builtin_def(mut a: Box<Lval>) -> BlisprResult {
             if vals_len != names_len {
                 Err(BlisprError::NumArguments(names_len, vals_len))
             } else {
+                // grab write lock on ENV
+                let mut w = ENV.write().unwrap();
                 for (k, v) in names.iter().zip(vals.iter()) {
                     debug!("adding key, value pair {:?}, {:?} to env", k, v);
-                    let mut w = ENV.write().unwrap();
                     let name = k.clone().as_string()?;
                     w.put(name, v.clone());
                 }
                 Ok(lval_sexpr())
+
+                // write lock dropped here
             }
         }
         _ => Err(BlisprError::WrongType(
