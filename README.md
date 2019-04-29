@@ -41,20 +41,22 @@ blispr> (eval (head {^ + - + - * / /* its homoiconic! */})) 2 32
  DEBUG blispr::eval  > lval_eval: Sexpr, evaluating children
  DEBUG blispr::eval  > lval_eval: Sexpr, evaluating children
  DEBUG blispr::eval  > lval_eval: Non-sexpr: Qexpr([Sym("^"), Sym("+"), Sym("-"), Sym("+"), Sym("-"), Sym("*"), Sym("/")])
- DEBUG blispr::eval  > Calling function Fun(0x5647fa36b580) on Sexpr([Qexpr([Sym("^"), Sym("+"), Sym("-"), Sym("+"), Sym("-"), Sym("*"), Sym("/")])])
+ DEBUG blispr::eval  > Calling function Fun(0x55da8de1d040) on Sexpr([Qexpr([Sym("^"), Sym("+"), Sym("-"), Sym("+"), Sym("-"), Sym("*"), Sym("/")])])
  DEBUG blispr::eval  > builtin_head: Returning the first element of [Sym("^"), Sym("+"), Sym("-"), Sym("+"), Sym("-"), Sym("*"), Sym("/")]
- DEBUG blispr::eval  > Calling function Fun(0x5647fa36afd0) on Sexpr([Sym("^")])
+ DEBUG blispr::eval  > Calling function Fun(0x55da8de1c4f0) on Sexpr([Sym("^")])
  DEBUG blispr::eval  > lval_eval: Sexpr, evaluating children
  DEBUG blispr::eval  > lval_eval: Non-sexpr: Num(2)
  DEBUG blispr::eval  > lval_eval: Non-sexpr: Num(32)
- DEBUG blispr::eval  > Calling function Fun(0x5647fa36a6b0) on Sexpr([Num(2), Num(32)])
+ DEBUG blispr::eval  > Calling function Fun(0x55da8de19d60) on Sexpr([Num(2), Num(32)])
  DEBUG blispr::eval  > builtin_op: Raise Num(2) to the Num(32) power
 4294967296
 ```
 
 ## Currently implemented
 
-Operators: `+ | add`, `- | sub`, `* | mul`, `/ | div`, `% | rem`, `^ | pow`, `max`, `min`
+* Operators: `+ | add`, `- | sub`, `* | mul`, `/ | div`, `% | rem`, `^ | pow`, `max`, `min`
+
+* List operations:
 
 ```
 blispr> list 1 2 3
@@ -73,6 +75,27 @@ blispr> cons 3 {4 5}
 {3 4 5}
 blispr> init {1 2 3 4}
 {1 2 3}
+```
+
+* Variable defintions - new assignments to the same binding will shadow old ones, there's just one big global scope:
+
+```
+blispr> def {x} 100
+()
+blispr> def {y} 200
+()
+blispr> def {a b} 5 6
+()
+blispr> def {arglist} {a b x y}
+()
+blispr> arglist
+{a b x y}
+blispr> + a b x y
+311
+blispr> def arglist 1 2 3 4
+()
+blispr> list a b x y
+{1 2 3 4}
 ```
 
 ...that's it!

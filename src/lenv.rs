@@ -26,6 +26,7 @@ impl Lenv {
             lookup: HashMap::new(),
         };
 
+        ret.add_builtin("def", builtin_def);
         ret.add_builtin("cons", builtin_cons);
         ret.add_builtin("eval", builtin_eval);
         ret.add_builtin("head", builtin_head);
@@ -54,7 +55,7 @@ impl Lenv {
     }
 
     fn add_builtin(&mut self, name: &str, func: LBuiltin) {
-        self.put(name, lval_fun(func));
+        self.put(name.to_string(), lval_fun(func));
     }
 
     pub fn get(&self, k: &str) -> BlisprResult {
@@ -64,8 +65,8 @@ impl Lenv {
         }
     }
 
-    pub fn put(&mut self, k: &str, v: Box<Lval>) {
-        let current = self.lookup.entry(k.into()).or_insert_with(|| v.clone());
+    pub fn put(&mut self, k: String, v: Box<Lval>) {
+        let current = self.lookup.entry(k).or_insert_with(|| v.clone());
         if *v != **current {
             // if it already existed, overwrite it with v
             *current = v;

@@ -1,4 +1,3 @@
-use crate::lenv::ENV;
 use crate::{
     error::BlisprError,
     eval::lval_eval,
@@ -6,7 +5,6 @@ use crate::{
 };
 use pest::{iterators::Pair, Parser};
 use rustyline::{error::ReadlineError, Editor};
-use std::sync::Arc;
 
 #[cfg(debug_assertions)]
 const _GRAMMAR: &str = include_str!("blispr.pest");
@@ -79,7 +77,7 @@ pub fn repl() -> Result<(), BlisprError> {
                 debug!("{}", parsed);
                 let lval_ptr = lval_read(parsed)?;
                 debug!("Parsed: {:?}", *lval_ptr);
-                match lval_eval(Arc::clone(&ENV), lval_ptr) {
+                match lval_eval(lval_ptr) {
                     Ok(r) => {
                         println!("{}", r);
                     }

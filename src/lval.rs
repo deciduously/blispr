@@ -1,13 +1,10 @@
-use crate::{
-    error::{BlisprError, BlisprResult},
-    lenv::LenvT,
-};
+use crate::error::{BlisprError, BlisprResult};
 use std::fmt;
 
 // The recursive types hold their children in one of these bad boys
 // TODO Should this be a VecDeque or a LinkedList instead?
 type LvalChildren = Vec<Box<Lval>>;
-pub type LBuiltin = fn(LenvT, Box<Lval>) -> BlisprResult;
+pub type LBuiltin = fn(Box<Lval>) -> BlisprResult;
 
 // The main type - all possible Blispr values
 #[derive(Debug, Clone, PartialEq)]
@@ -24,6 +21,15 @@ impl Lval {
         match *self {
             Lval::Num(n_num) => Ok(n_num),
             _ => Err(BlisprError::NotANumber),
+        }
+    }
+    pub fn as_string(&self) -> Result<String, BlisprError> {
+        match self {
+            Lval::Sym(s) => Ok(s.to_string()),
+            _ => Err(BlisprError::WrongType(
+                "symbol".to_string(),
+                format!("{:?}", self),
+            )),
         }
     }
     pub fn len(&self) -> Result<usize, BlisprError> {

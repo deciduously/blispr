@@ -1,12 +1,9 @@
 use crate::{
     error::{BlisprError, BlisprResult},
-    lenv::LenvT,
+    lenv::ENV,
     lval::{lval_add, lval_join, lval_num, lval_pop, lval_qexpr, lval_sexpr, Lval},
 };
-use std::{
-    ops::{Add, Div, Mul, Rem, Sub},
-    sync::Arc,
-};
+use std::ops::{Add, Div, Mul, Rem, Sub};
 
 macro_rules! apply_binop {
     ( $op:ident, $x:ident, $y:ident ) => {
@@ -106,45 +103,73 @@ fn builtin_op(mut v: Box<Lval>, func: &str) -> BlisprResult {
 }
 
 // Operator aliases, function pointers will be stored in env
-pub fn builtin_add(_e: LenvT, a: Box<Lval>) -> BlisprResult {
+pub fn builtin_add(a: Box<Lval>) -> BlisprResult {
     builtin_op(a, "+")
 }
 
-pub fn builtin_sub(_e: LenvT, a: Box<Lval>) -> BlisprResult {
+pub fn builtin_sub(a: Box<Lval>) -> BlisprResult {
     builtin_op(a, "-")
 }
 
-pub fn builtin_mul(_e: LenvT, a: Box<Lval>) -> BlisprResult {
+pub fn builtin_mul(a: Box<Lval>) -> BlisprResult {
     builtin_op(a, "*")
 }
 
-pub fn builtin_div(_e: LenvT, a: Box<Lval>) -> BlisprResult {
+pub fn builtin_div(a: Box<Lval>) -> BlisprResult {
     builtin_op(a, "/")
 }
 
-pub fn builtin_pow(_e: LenvT, a: Box<Lval>) -> BlisprResult {
+pub fn builtin_pow(a: Box<Lval>) -> BlisprResult {
     builtin_op(a, "^")
 }
 
-pub fn builtin_rem(_e: LenvT, a: Box<Lval>) -> BlisprResult {
+pub fn builtin_rem(a: Box<Lval>) -> BlisprResult {
     builtin_op(a, "%")
 }
 
-pub fn builtin_max(_e: LenvT, a: Box<Lval>) -> BlisprResult {
+pub fn builtin_max(a: Box<Lval>) -> BlisprResult {
     builtin_op(a, "max")
 }
 
-pub fn builtin_min(_e: LenvT, a: Box<Lval>) -> BlisprResult {
+pub fn builtin_min(a: Box<Lval>) -> BlisprResult {
     builtin_op(a, "min")
 }
 
 // define a list of values
-pub fn builtin_def(_e: LenvT, a: Box<Lval>) -> BlisprResult {
-    unimplemented!()
+pub fn builtin_def(mut a: Box<Lval>) -> BlisprResult {
+    let args = lval_pop(&mut a, 0)?;
+    match *args {
+        Lval::Qexpr(names) => {
+            // grab the rest of the vals
+            let mut vals = Vec::new();
+            for _ in 0..a.len()? {
+                vals.push(lval_pop(&mut a, 0)?);
+            }
+            let names_len = names.len();
+            let vals_len = vals.len();
+            debug!("builtin_def: names: {:?} | vals: {:?}", names, vals);
+            // TODO assert all symbols?
+            if vals_len != names_len {
+                Err(BlisprError::NumArguments(names_len, vals_len))
+            } else {
+                for (k, v) in names.iter().zip(vals.iter()) {
+                    debug!("adding key, value pair {:?}, {:?} to env", k, v);
+                    let mut w = ENV.write().unwrap();
+                    let name = k.clone().as_string()?;
+                    w.put(name, v.clone());
+                }
+                Ok(lval_sexpr())
+            }
+        }
+        _ => Err(BlisprError::WrongType(
+            "qexpr".to_string(),
+            format!("{:?}", args),
+        )),
+    }
 }
 
 // Attach a value to the front of a qexpr
-pub fn builtin_cons(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
+pub fn builtin_cons(mut v: Box<Lval>) -> BlisprResult {
     let child_count = v.len()?;
     if child_count != 2 {
         return Err(BlisprError::NumArguments(2, child_count));
@@ -168,7 +193,7 @@ pub fn builtin_cons(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
 }
 
 // Evaluate qexpr as a sexpr
-pub fn builtin_eval(e: LenvT, mut v: Box<Lval>) -> BlisprResult {
+pub fn builtin_eval(mut v: Box<Lval>) -> BlisprResult {
     let qexpr = lval_pop(&mut v, 0)?;
     match *qexpr {
         Lval::Qexpr(ref children) => {
@@ -178,18 +203,18 @@ pub fn builtin_eval(e: LenvT, mut v: Box<Lval>) -> BlisprResult {
                 lval_add(&mut new_sexpr, cloned)?;
             }
             debug!("builtin_eval: {:?}", new_sexpr);
-            lval_eval(e, new_sexpr)
+            lval_eval(new_sexpr)
         }
         _ => {
             // add it back
             lval_add(&mut v, qexpr)?;
-            lval_eval(e, v)
+            lval_eval(v)
         }
     }
 }
 
 // Return the first element of a qexpr
-pub fn builtin_head(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
+pub fn builtin_head(mut v: Box<Lval>) -> BlisprResult {
     let mut qexpr = lval_pop(&mut v, 0)?;
     match *qexpr {
         Lval::Qexpr(ref mut children) => {
@@ -210,7 +235,7 @@ pub fn builtin_head(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
 }
 
 // Return everything but the last element of a qexpr
-pub fn builtin_init(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
+pub fn builtin_init(mut v: Box<Lval>) -> BlisprResult {
     let qexpr = lval_pop(&mut v, 0)?;
     match *qexpr {
         Lval::Qexpr(ref children) => {
@@ -228,7 +253,7 @@ pub fn builtin_init(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
 }
 
 // Join the children into one qexpr
-pub fn builtin_join(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
+pub fn builtin_join(mut v: Box<Lval>) -> BlisprResult {
     let mut ret = lval_qexpr();
     for _ in 0..v.len()? {
         let next = lval_pop(&mut v, 0)?;
@@ -248,7 +273,7 @@ pub fn builtin_join(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
 }
 
 // make sexpr into a qexpr
-pub fn builtin_list(_e: LenvT, v: Box<Lval>) -> BlisprResult {
+pub fn builtin_list(v: Box<Lval>) -> BlisprResult {
     match *v {
         Lval::Sexpr(ref children) => {
             debug!("builtin_list: Building list from {:?}", children);
@@ -263,7 +288,7 @@ pub fn builtin_list(_e: LenvT, v: Box<Lval>) -> BlisprResult {
     }
 }
 
-pub fn builtin_len(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
+pub fn builtin_len(mut v: Box<Lval>) -> BlisprResult {
     let child_count = v.len()?;
     match child_count {
         1 => {
@@ -283,7 +308,7 @@ pub fn builtin_len(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
     }
 }
 
-pub fn builtin_tail(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
+pub fn builtin_tail(mut v: Box<Lval>) -> BlisprResult {
     let mut qexpr = lval_pop(&mut v, 0)?;
     debug!("Returning tail of {}", qexpr);
     match *qexpr {
@@ -304,11 +329,11 @@ pub fn builtin_tail(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
     }
 }
 
-pub fn lval_eval(e: LenvT, mut v: Box<Lval>) -> BlisprResult {
+pub fn lval_eval(mut v: Box<Lval>) -> BlisprResult {
     let child_count;
     match *v {
         Lval::Sym(s) => {
-            let r = e.read().unwrap();
+            let r = ENV.read().unwrap();
             return Ok(r.get(&s)?);
         }
         Lval::Sexpr(ref mut cells) => {
@@ -316,7 +341,7 @@ pub fn lval_eval(e: LenvT, mut v: Box<Lval>) -> BlisprResult {
             // First, evaluate all the cells inside
             child_count = cells.len();
             for item in cells.iter_mut().take(child_count) {
-                *item = lval_eval(Arc::clone(&e), item.clone())?
+                *item = lval_eval(item.clone())?
             }
         }
         // if it's not a sexpr, we're done
@@ -338,7 +363,7 @@ pub fn lval_eval(e: LenvT, mut v: Box<Lval>) -> BlisprResult {
         let fp = lval_pop(&mut v, 0)?;
         debug!("Calling function {:?} on {:?}", fp, v);
         match *fp {
-            Lval::Fun(f) => f(Arc::clone(&e), v),
+            Lval::Fun(f) => f(v),
             _ => {
                 println!("{}", *fp);
                 Err(BlisprError::UnknownFunction(format!("{}", fp)))
