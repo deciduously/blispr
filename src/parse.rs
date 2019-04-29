@@ -51,6 +51,24 @@ fn lval_read(parsed: Pair<Rule>) -> Result<Box<Lval>, BlisprError> {
     }
 }
 
+pub fn eval_str(s: &str) -> Result<(), BlisprError> {
+    let parsed = match BlisprParser::parse(Rule::blispr, s) {
+        Ok(mut iter) => iter.next().unwrap(),
+        // TODO impl From<pest::Error> for BlisprError
+        Err(err) => return Err(BlisprError::ParseError(err.to_string())),
+    };
+    debug!("{}", parsed);
+    let lval_ptr = lval_read(parsed)?;
+    debug!("Parsed: {:?}", *lval_ptr);
+    match lval_eval(lval_ptr) {
+        Ok(r) => {
+            println!("{}", r);
+        }
+        Err(e) => eprintln!("Error: {}", e),
+    };
+    Ok(())
+}
+
 pub fn repl() -> Result<(), BlisprError> {
     println!("Blispr v0.0.1");
     println!("Press Ctrl-C or Ctrl-D to exit");
@@ -67,22 +85,7 @@ pub fn repl() -> Result<(), BlisprError> {
         match input {
             Ok(line) => {
                 rl.add_history_entry(line.as_ref());
-                let parsed = match BlisprParser::parse(Rule::blispr, &line) {
-                    Ok(mut iter) => iter.next().unwrap(),
-                    Err(err) => {
-                        println!("Syntax error:\n{}", err);
-                        continue;
-                    }
-                };
-                debug!("{}", parsed);
-                let lval_ptr = lval_read(parsed)?;
-                debug!("Parsed: {:?}", *lval_ptr);
-                match lval_eval(lval_ptr) {
-                    Ok(r) => {
-                        println!("{}", r);
-                    }
-                    Err(e) => eprintln!("Error: {}", e),
-                };
+                eval_str(&line)?;
             }
             Err(ReadlineError::Interrupted) => {
                 info!("CTRL-C");

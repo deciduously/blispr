@@ -19,12 +19,39 @@ $ cargo run
      Running `target/debug/blispr`
 Blispr v0.0.1
 Press Ctrl-C or Ctrl-D to exit
-blispr> (add (* 8 7/* comments too! */ (div 65 5) (- 21 3 11)) (max 8 2 (min 3 76)))
-5104
-blispr>
+blispr> def {x} 100
+()
+blispr> def {y} 200
+()
+blispr> def {a /* comments look like this */ b} 5 6
+()
+blispr> eval (cons (head {+ - * /}) (list a b x y))
+311
 ```
 
 It uses [`rustyline`](https://github.com/kkawakam/rustyline) as a readline alternative which will save history to `./.blispr-history.txt`.  See that repo for all supported options.
+
+Run with no arguments for the repl, or pass an input file with `-i` or `--input`:
+
+test.blispr:
+
+```
+def {x} 100
+def {y} 200
+def {a b} 5 6
+eval (cons (head {+ - * /}) (list a b x y))
+```
+
+```
+$ cargo run -- -i test.blispr
+   Compiling blispr v0.0.1 (/home/ben/code/blispr)
+    Finished dev [unoptimized + debuginfo] target(s) in 6.83s
+     Running `target/debug/blispr -i test.blispr`
+()
+()
+()
+311
+```
 
 You can pass `-d` or `--debug` at runtime (`cargo run -- -d` or `blispr -d`) to enable overly verbose debug output:
 
@@ -78,7 +105,7 @@ blispr> init {1 2 3 4}
 {1 2 3}
 ```
 
-* Variable defintions - new assignments to the same binding will shadow old ones, there's just one big global scope:
+* Variable defintions - new assignments to the same binding will overwrite old ones, there's just one big global scope:
 
 ```
 blispr> def {x} 100

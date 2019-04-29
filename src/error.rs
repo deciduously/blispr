@@ -8,6 +8,7 @@ pub enum BlisprError {
     NoChildren,
     NotANumber,
     NumArguments(usize, usize),
+    ParseError(String),
     WrongType(String, String),
     UnknownFunction(String),
 }
@@ -27,6 +28,7 @@ impl fmt::Display for BlisprError {
                 "Wrong number of arguments: expected {}, received {}",
                 expected, received
             ),
+            ParseError(s) => write!(f, "Parse error: {}", s),
             WrongType(expected, received) => write!(
                 f,
                 "Wrong type: expected {}, received {}",
