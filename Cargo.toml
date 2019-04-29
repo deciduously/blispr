@@ -5,6 +5,7 @@ name = "blispr"
 version = "0.0.1"
 [dependencies]
 hashbrown = "0.3"
+lazy_static = "1.3"
 log = "0.4"
 pest = "2.1"
 pest_derive = "2.1"

@@ -1,11 +1,11 @@
 use crate::{
     error::{BlisprError, BlisprResult},
-    lenv::Lenv,
+    lenv::LenvT,
     lval::{lval_add, lval_join, lval_num, lval_pop, lval_qexpr, lval_sexpr, Lval},
 };
 use std::{
     ops::{Add, Div, Mul, Rem, Sub},
-    rc::Rc,
+    sync::Arc,
 };
 
 macro_rules! apply_binop {
@@ -20,7 +20,7 @@ macro_rules! apply_binop {
     };
 }
 
-fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> BlisprResult<'a> {
+fn builtin_op(mut v: Box<Lval>, func: &str) -> BlisprResult {
     let mut child_count;
     match *v {
         Lval::Sexpr(ref children) => {
@@ -106,40 +106,40 @@ fn builtin_op<'a>(mut v: Box<Lval<'a>>, func: &str) -> BlisprResult<'a> {
 }
 
 // Operator aliases, function pointers will be stored in env
-pub fn builtin_add<'a>(_e: Rc<Lenv>, a: Box<Lval<'a>>) -> BlisprResult<'a> {
+pub fn builtin_add(_e: LenvT, a: Box<Lval>) -> BlisprResult {
     builtin_op(a, "+")
 }
 
-pub fn builtin_sub<'a>(_e: Rc<Lenv>, a: Box<Lval<'a>>) -> BlisprResult<'a> {
+pub fn builtin_sub(_e: LenvT, a: Box<Lval>) -> BlisprResult {
     builtin_op(a, "-")
 }
 
-pub fn builtin_mul<'a>(_e: Rc<Lenv>, a: Box<Lval<'a>>) -> BlisprResult<'a> {
+pub fn builtin_mul(_e: LenvT, a: Box<Lval>) -> BlisprResult {
     builtin_op(a, "*")
 }
 
-pub fn builtin_div<'a>(_e: Rc<Lenv>, a: Box<Lval<'a>>) -> BlisprResult<'a> {
+pub fn builtin_div(_e: LenvT, a: Box<Lval>) -> BlisprResult {
     builtin_op(a, "/")
 }
 
-pub fn builtin_pow<'a>(_e: Rc<Lenv>, a: Box<Lval<'a>>) -> BlisprResult<'a> {
+pub fn builtin_pow(_e: LenvT, a: Box<Lval>) -> BlisprResult {
     builtin_op(a, "^")
 }
 
-pub fn builtin_rem<'a>(_e: Rc<Lenv>, a: Box<Lval<'a>>) -> BlisprResult<'a> {
+pub fn builtin_rem(_e: LenvT, a: Box<Lval>) -> BlisprResult {
     builtin_op(a, "%")
 }
 
-pub fn builtin_max<'a>(_e: Rc<Lenv>, a: Box<Lval<'a>>) -> BlisprResult<'a> {
+pub fn builtin_max(_e: LenvT, a: Box<Lval>) -> BlisprResult {
     builtin_op(a, "max")
 }
 
-pub fn builtin_min<'a>(_e: Rc<Lenv>, a: Box<Lval<'a>>) -> BlisprResult<'a> {
+pub fn builtin_min(_e: LenvT, a: Box<Lval>) -> BlisprResult {
     builtin_op(a, "min")
 }
 
 // Attach a value to the front of a qexpr
-pub fn builtin_cons<'a>(_e: Rc<Lenv>, mut v: Box<Lval<'a>>) -> BlisprResult<'a> {
+pub fn builtin_cons(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
     let child_count = v.len()?;
     if child_count != 2 {
         return Err(BlisprError::NumArguments(2, child_count));
@@ -163,7 +163,7 @@ pub fn builtin_cons<'a>(_e: Rc<Lenv>, mut v: Box<Lval<'a>>) -> BlisprResult<'a> 
 }
 
 // Evaluate qexpr as a sexpr
-pub fn builtin_eval<'a>(e: Rc<Lenv<'a>>, mut v: Box<Lval<'a>>) -> BlisprResult<'a> {
+pub fn builtin_eval(e: LenvT, mut v: Box<Lval>) -> BlisprResult {
     let qexpr = lval_pop(&mut v, 0)?;
     match *qexpr {
         Lval::Qexpr(ref children) => {
@@ -184,7 +184,7 @@ pub fn builtin_eval<'a>(e: Rc<Lenv<'a>>, mut v: Box<Lval<'a>>) -> BlisprResult<'
 }
 
 // Return the first element of a qexpr
-pub fn builtin_head<'a>(_e: Rc<Lenv>, mut v: Box<Lval<'a>>) -> BlisprResult<'a> {
+pub fn builtin_head(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
     let mut qexpr = lval_pop(&mut v, 0)?;
     match *qexpr {
         Lval::Qexpr(ref mut children) => {
@@ -205,7 +205,7 @@ pub fn builtin_head<'a>(_e: Rc<Lenv>, mut v: Box<Lval<'a>>) -> BlisprResult<'a> 
 }
 
 // Return everything but the last element of a qexpr
-pub fn builtin_init<'a>(_e: Rc<Lenv>, mut v: Box<Lval<'a>>) -> BlisprResult<'a> {
+pub fn builtin_init(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
     let qexpr = lval_pop(&mut v, 0)?;
     match *qexpr {
         Lval::Qexpr(ref children) => {
@@ -223,7 +223,7 @@ pub fn builtin_init<'a>(_e: Rc<Lenv>, mut v: Box<Lval<'a>>) -> BlisprResult<'a> 
 }
 
 // Join the children into one qexpr
-pub fn builtin_join<'a>(_e: Rc<Lenv>, mut v: Box<Lval<'a>>) -> BlisprResult<'a> {
+pub fn builtin_join(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
     let mut ret = lval_qexpr();
     for _ in 0..v.len()? {
         let next = lval_pop(&mut v, 0)?;
@@ -243,7 +243,7 @@ pub fn builtin_join<'a>(_e: Rc<Lenv>, mut v: Box<Lval<'a>>) -> BlisprResult<'a> 
 }
 
 // make sexpr into a qexpr
-pub fn builtin_list<'a>(_e: Rc<Lenv>, v: Box<Lval<'a>>) -> BlisprResult<'a> {
+pub fn builtin_list(_e: LenvT, v: Box<Lval>) -> BlisprResult {
     match *v {
         Lval::Sexpr(ref children) => {
             debug!("builtin_list: Building list from {:?}", children);
@@ -258,7 +258,7 @@ pub fn builtin_list<'a>(_e: Rc<Lenv>, v: Box<Lval<'a>>) -> BlisprResult<'a> {
     }
 }
 
-pub fn builtin_len<'a>(_e: Rc<Lenv>, mut v: Box<Lval<'a>>) -> BlisprResult<'a> {
+pub fn builtin_len(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
     let child_count = v.len()?;
     match child_count {
         1 => {
@@ -278,7 +278,7 @@ pub fn builtin_len<'a>(_e: Rc<Lenv>, mut v: Box<Lval<'a>>) -> BlisprResult<'a> {
     }
 }
 
-pub fn builtin_tail<'a>(_e: Rc<Lenv>, mut v: Box<Lval<'a>>) -> BlisprResult<'a> {
+pub fn builtin_tail(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
     let mut qexpr = lval_pop(&mut v, 0)?;
     debug!("Returning tail of {}", qexpr);
     match *qexpr {
@@ -299,18 +299,19 @@ pub fn builtin_tail<'a>(_e: Rc<Lenv>, mut v: Box<Lval<'a>>) -> BlisprResult<'a> 
     }
 }
 
-pub fn lval_eval<'a>(e: Rc<Lenv<'a>>, mut v: Box<Lval<'a>>) -> BlisprResult<'a> {
+pub fn lval_eval(e: LenvT, mut v: Box<Lval>) -> BlisprResult {
     let child_count;
     match *v {
         Lval::Sym(s) => {
-            return Ok(e.get(s)?);
+            let r = e.read().unwrap();
+            return Ok(r.get(&s)?);
         }
         Lval::Sexpr(ref mut cells) => {
             debug!("lval_eval: Sexpr, evaluating children");
             // First, evaluate all the cells inside
             child_count = cells.len();
             for item in cells.iter_mut().take(child_count) {
-                *item = lval_eval(Rc::clone(&e), item.clone())?
+                *item = lval_eval(Arc::clone(&e), item.clone())?
             }
         }
         // if it's not a sexpr, we're done
@@ -332,7 +333,7 @@ pub fn lval_eval<'a>(e: Rc<Lenv<'a>>, mut v: Box<Lval<'a>>) -> BlisprResult<'a> 
         let fp = lval_pop(&mut v, 0)?;
         debug!("Calling function {:?} on {:?}", fp, v);
         match *fp {
-            Lval::Fun(f) => f(e, v),
+            Lval::Fun(f) => f(Arc::clone(&e), v),
             _ => {
                 println!("{}", *fp);
                 Err(BlisprError::UnknownFunction(format!("{}", fp)))

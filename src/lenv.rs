@@ -7,13 +7,20 @@ use crate::{
     lval::{lval_fun, LBuiltin, Lval},
 };
 use hashbrown::HashMap;
+use std::sync::{Arc, RwLock};
 
-#[derive(PartialEq)]
-pub struct Lenv<'a> {
-    lookup: HashMap<String, Box<Lval<'a>>>,
+lazy_static! {
+    pub static ref ENV: LenvT = Arc::new(RwLock::new(Lenv::new()));
 }
 
-impl<'a> Lenv<'a> {
+pub type LenvT = Arc<RwLock<Lenv>>;
+
+#[derive(PartialEq)]
+pub struct Lenv {
+    lookup: HashMap<String, Box<Lval>>,
+}
+
+impl Lenv {
     pub fn new() -> Self {
         let mut ret = Self {
             lookup: HashMap::new(),
@@ -46,18 +53,18 @@ impl<'a> Lenv<'a> {
         ret
     }
 
-    fn add_builtin(&mut self, name: &str, func: LBuiltin<'a>) {
+    fn add_builtin(&mut self, name: &str, func: LBuiltin) {
         self.put(name, lval_fun(func));
     }
 
-    pub fn get(&self, k: &str) -> BlisprResult<'a> {
+    pub fn get(&self, k: &str) -> BlisprResult {
         match self.lookup.get(k) {
             Some(v) => Ok(Box::new(*v.clone())),
             None => Err(BlisprError::UnknownFunction(k.to_string())),
         }
     }
 
-    pub fn put(&mut self, k: &str, v: Box<Lval<'a>>) {
+    pub fn put(&mut self, k: &str, v: Box<Lval>) {
         let current = self.lookup.entry(k.into()).or_insert_with(|| v.clone());
         if *v != **current {
             // if it already existed, overwrite it with v

@@ -1,25 +1,25 @@
 use crate::{
     error::{BlisprError, BlisprResult},
-    lenv::Lenv,
+    lenv::LenvT,
 };
-use std::{fmt, rc::Rc};
+use std::fmt;
 
 // The recursive types hold their children in one of these bad boys
 // TODO Should this be a VecDeque or a LinkedList instead?
-type LvalChildren<'a> = Vec<Box<Lval<'a>>>;
-pub type LBuiltin<'a> = fn(Rc<Lenv<'a>>, Box<Lval<'a>>) -> BlisprResult<'a>;
+type LvalChildren = Vec<Box<Lval>>;
+pub type LBuiltin = fn(LenvT, Box<Lval>) -> BlisprResult;
 
 // The main type - all possible Blispr values
 #[derive(Debug, Clone)]
-pub enum Lval<'a> {
-    Fun(LBuiltin<'a>),
+pub enum Lval {
+    Fun(LBuiltin),
     Num(i64),
-    Sym(&'a str),
-    Sexpr(LvalChildren<'a>),
-    Qexpr(LvalChildren<'a>),
+    Sym(String),
+    Sexpr(LvalChildren),
+    Qexpr(LvalChildren),
 }
 
-impl<'a> Lval<'a> {
+impl Lval {
     pub fn as_num(&self) -> Result<i64, BlisprError> {
         match *self {
             Lval::Num(n_num) => Ok(n_num),
@@ -34,7 +34,7 @@ impl<'a> Lval<'a> {
     }
 }
 
-impl<'a> fmt::Display for Lval<'a> {
+impl fmt::Display for Lval {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Lval::Fun(_) => write!(f, "<function>"),
@@ -46,8 +46,8 @@ impl<'a> fmt::Display for Lval<'a> {
     }
 }
 
-impl<'a> PartialEq for Lval<'a> {
-    fn eq(&self, other: &Lval<'a>) -> bool {
+impl PartialEq for Lval {
+    fn eq(&self, other: &Lval) -> bool {
         match self {
             Lval::Fun(_) => false, // for now?  how to compare functions
             Lval::Num(contents) => match other {
@@ -88,30 +88,30 @@ fn lval_expr_print(cell: &[Box<Lval>]) -> String {
 // You can omit the lifetime annotations when the constructor is passed a reference
 // I included them for consistency
 
-pub fn lval_fun<'a>(f: LBuiltin<'a>) -> Box<Lval<'a>> {
+pub fn lval_fun(f: LBuiltin) -> Box<Lval> {
     Box::new(Lval::Fun(f))
 }
 
-pub fn lval_num<'a>(n: i64) -> Box<Lval<'a>> {
+pub fn lval_num(n: i64) -> Box<Lval> {
     Box::new(Lval::Num(n))
 }
 
-pub fn lval_sym<'a>(s: &'a str) -> Box<Lval<'a>> {
-    Box::new(Lval::Sym(s))
+pub fn lval_sym(s: &str) -> Box<Lval> {
+    Box::new(Lval::Sym(s.into()))
 }
 
-pub fn lval_sexpr<'a>() -> Box<Lval<'a>> {
+pub fn lval_sexpr() -> Box<Lval> {
     Box::new(Lval::Sexpr(Vec::new()))
 }
 
-pub fn lval_qexpr<'a>() -> Box<Lval<'a>> {
+pub fn lval_qexpr() -> Box<Lval> {
     Box::new(Lval::Qexpr(Vec::new()))
 }
 
 // Manipulating children
 
 // Add lval x to lval::sexpr or lval::qexpr v
-pub fn lval_add<'a>(v: &mut Lval<'a>, x: Box<Lval<'a>>) -> Result<(), BlisprError> {
+pub fn lval_add(v: &mut Lval, x: Box<Lval>) -> Result<(), BlisprError> {
     match *v {
         Lval::Sexpr(ref mut children) | Lval::Qexpr(ref mut children) => {
             children.push(x);
@@ -122,7 +122,7 @@ pub fn lval_add<'a>(v: &mut Lval<'a>, x: Box<Lval<'a>>) -> Result<(), BlisprErro
 }
 
 // Extract single element of sexpr at index i
-pub fn lval_pop<'a>(v: &mut Lval<'a>, i: usize) -> BlisprResult<'a> {
+pub fn lval_pop(v: &mut Lval, i: usize) -> BlisprResult {
     match *v {
         Lval::Sexpr(ref mut children) | Lval::Qexpr(ref mut children) => {
             let ret = (&children[i]).clone();
@@ -134,7 +134,7 @@ pub fn lval_pop<'a>(v: &mut Lval<'a>, i: usize) -> BlisprResult<'a> {
 }
 
 // Add each cell in y to x
-pub fn lval_join<'a>(x: &mut Lval<'a>, mut y: Box<Lval<'a>>) -> Result<(), BlisprError> {
+pub fn lval_join(x: &mut Lval, mut y: Box<Lval>) -> Result<(), BlisprError> {
     while y.len()? > 0 {
         lval_add(x, lval_pop(&mut y, 0)?)?;
     }

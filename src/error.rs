@@ -12,7 +12,7 @@ pub enum BlisprError {
     UnknownFunction(String),
 }
 
-pub type BlisprResult<'a> = Result<Box<Lval<'a>>, BlisprError>;
+pub type BlisprResult = Result<Box<Lval>, BlisprError>;
 
 impl fmt::Display for BlisprError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
