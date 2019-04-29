@@ -10,7 +10,7 @@ type LvalChildren = Vec<Box<Lval>>;
 pub type LBuiltin = fn(LenvT, Box<Lval>) -> BlisprResult;
 
 // The main type - all possible Blispr values
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Lval {
     Fun(LBuiltin),
     Num(i64),
@@ -42,30 +42,6 @@ impl fmt::Display for Lval {
             Lval::Sym(s) => write!(f, "{}", s),
             Lval::Sexpr(cell) => write!(f, "({})", lval_expr_print(cell)),
             Lval::Qexpr(cell) => write!(f, "{{{}}}", lval_expr_print(cell)),
-        }
-    }
-}
-
-impl PartialEq for Lval {
-    fn eq(&self, other: &Lval) -> bool {
-        match self {
-            Lval::Fun(_) => false, // for now?  how to compare functions
-            Lval::Num(contents) => match other {
-                Lval::Num(other_contents) => contents == other_contents,
-                _ => false,
-            },
-            Lval::Sym(contents) => match other {
-                Lval::Sym(other_contents) => contents == other_contents,
-                _ => false,
-            },
-            Lval::Sexpr(contents) => match other {
-                Lval::Sexpr(other_contents) => contents == other_contents,
-                _ => false,
-            },
-            Lval::Qexpr(contents) => match other {
-                Lval::Qexpr(other_contents) => contents == other_contents,
-                _ => false,
-            },
         }
     }
 }

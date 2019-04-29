@@ -45,32 +45,32 @@ fn builtin_op(mut v: Box<Lval>, func: &str) -> BlisprResult {
         child_count -= 1;
         match func {
             "+" | "add" => {
-                debug!("builtin_op: Add {} and {}", x, y);
+                debug!("builtin_op: Add {:?} and {:?}", x, y);
                 apply_binop!(add, x, y)
             }
             "-" | "sub" => {
-                debug!("builtin_op: Subtract {} and {}", x, y);
+                debug!("builtin_op: Subtract {:?} and {:?}", x, y);
                 apply_binop!(sub, x, y)
             }
             "*" | "mul" => {
-                debug!("builtin_op: Multiply {} and {}", x, y);
+                debug!("builtin_op: Multiply {:?} and {:?}", x, y);
                 apply_binop!(mul, x, y)
             }
             "/" | "div" => {
                 if y.as_num()? == 0 {
-                    debug!("builtin_op: Failed divide {} by {}", x, y);
+                    debug!("builtin_op: Failed divide {:?} by {:?}", x, y);
                     return Err(BlisprError::DivideByZero);
                 } else {
-                    debug!("builtin_op: Divide {} by {}", x, y);
+                    debug!("builtin_op: Divide {:?} by {:?}", x, y);
                     apply_binop!(div, x, y)
                 }
             }
             "%" | "rem" => {
-                debug!("builtin_op: {} % {}", x, y);
+                debug!("builtin_op: {:?} % {:?}", x, y);
                 apply_binop!(rem, x, y)
             }
             "^" | "pow" => {
-                debug!("builtin_op: Raise {} to the {} power", x, y);
+                debug!("builtin_op: Raise {:?} to the {:?} power", x, y);
                 let y_num = y.as_num()?;
                 let x_num = x.as_num()?;
                 let mut coll = 1;
@@ -80,7 +80,7 @@ fn builtin_op(mut v: Box<Lval>, func: &str) -> BlisprResult {
                 x = lval_num(coll);
             }
             "min" => {
-                debug!("builtin_op: Min {} and {}", x, y);
+                debug!("builtin_op: Min {:?} and {:?}", x, y);
                 let x_num = x.as_num()?;
                 let y_num = y.as_num()?;
                 if x_num < y_num {
@@ -90,7 +90,7 @@ fn builtin_op(mut v: Box<Lval>, func: &str) -> BlisprResult {
                 };
             }
             "max" => {
-                debug!("builtin_op: Max {} and {}", x, y);
+                debug!("builtin_op: Max {:?} and {:?}", x, y);
                 let x_num = x.as_num()?;
                 let y_num = y.as_num()?;
                 if x_num > y_num {
@@ -136,6 +136,11 @@ pub fn builtin_max(_e: LenvT, a: Box<Lval>) -> BlisprResult {
 
 pub fn builtin_min(_e: LenvT, a: Box<Lval>) -> BlisprResult {
     builtin_op(a, "min")
+}
+
+// define a list of values
+pub fn builtin_def(_e: LenvT, a: Box<Lval>) -> BlisprResult {
+    unimplemented!()
 }
 
 // Attach a value to the front of a qexpr

@@ -41,14 +41,14 @@ blispr> (eval (head {^ + - + - * / /* its homoiconic! */})) 2 32
  DEBUG blispr::eval  > lval_eval: Sexpr, evaluating children
  DEBUG blispr::eval  > lval_eval: Sexpr, evaluating children
  DEBUG blispr::eval  > lval_eval: Non-sexpr: Qexpr([Sym("^"), Sym("+"), Sym("-"), Sym("+"), Sym("-"), Sym("*"), Sym("/")])
- DEBUG blispr::eval  > Calling function Fun(0x564d4a462580) on Sexpr([Qexpr([Sym("^"), Sym("+"), Sym("-"), Sym("+"), Sym("-"), Sym("*"), Sym("/")])])
+ DEBUG blispr::eval  > Calling function Fun(0x5647fa36b580) on Sexpr([Qexpr([Sym("^"), Sym("+"), Sym("-"), Sym("+"), Sym("-"), Sym("*"), Sym("/")])])
  DEBUG blispr::eval  > builtin_head: Returning the first element of [Sym("^"), Sym("+"), Sym("-"), Sym("+"), Sym("-"), Sym("*"), Sym("/")]
- DEBUG blispr::eval  > Calling function Fun(0x564d4a4619a0) on Sexpr([Sym("^")])
+ DEBUG blispr::eval  > Calling function Fun(0x5647fa36afd0) on Sexpr([Sym("^")])
  DEBUG blispr::eval  > lval_eval: Sexpr, evaluating children
  DEBUG blispr::eval  > lval_eval: Non-sexpr: Num(2)
  DEBUG blispr::eval  > lval_eval: Non-sexpr: Num(32)
- DEBUG blispr::eval  > Calling function Fun(0x564d4a460a00) on Sexpr([Num(2), Num(32)])
- DEBUG blispr::eval  > builtin_op: Raise 2 to the 32 power
+ DEBUG blispr::eval  > Calling function Fun(0x5647fa36a6b0) on Sexpr([Num(2), Num(32)])
+ DEBUG blispr::eval  > builtin_op: Raise Num(2) to the Num(32) power
 4294967296
 ```
 
