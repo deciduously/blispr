@@ -12,7 +12,7 @@ pub type LBuiltin = fn(Box<Lval>) -> BlisprResult;
 // There are two types of function - builtin and lambda
 #[derive(Debug, Clone, PartialEq)]
 pub enum LvalFun {
-    Builtin(LBuiltin),                       // (name, function pointer)
+    Builtin(LBuiltin),                       // (function pointer)
     Lambda(Box<Lenv>, Box<Lval>, Box<Lval>), // (environment, formals, body), both should be Qexpr
 }
 
