@@ -69,8 +69,7 @@ pub fn repl() -> Result<()> {
     Ok(())
 }
 
-fn main() {
-    let opt = Opt::from_args();
+fn run(opt: Opt) -> Result<()> {
     // enable debug output if needed
     if opt.debug {
         ::std::env::set_var("RUST_LOG", "blispr=debug");
@@ -79,17 +78,20 @@ fn main() {
     pretty_env_logger::init();
 
     if let Some(f) = opt.input {
-        // if input file passed, eval that
-        let file = File::open(f).unwrap();
+        // if input file passed, eval its contents
+        let file = File::open(f)?;
         let bfr = BufReader::new(file);
         for line in bfr.lines() {
-            if let Err(e) = eval_str(&line.unwrap()) {
-                eprintln!("Error: {}", e);
-                exit(1);
-            }
+            eval_str(&line?)?
         }
-    } else if let Err(e) = repl() {
-        // otherwise start a REPL
+    } else {
+        repl()?
+    }
+    Ok(())
+}
+
+fn main() {
+    if let Err(e) = run(Opt::from_args()) {
         eprintln!("Error: {}", e);
         exit(1);
     }

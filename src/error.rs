@@ -65,11 +65,14 @@ impl<T> From<std::sync::PoisonError<T>> for BlisprError {
     }
 }
 
+impl From<std::io::Error> for BlisprError {
+    fn from(error: std::io::Error) -> Self {
+        BlisprError::ParseError(error.to_string())
+    }
+}
+
 impl From<rustyline::error::ReadlineError> for BlisprError {
     fn from(error: rustyline::error::ReadlineError) -> Self {
         BlisprError::ReadlineError(error.to_string())
     }
 }
-
-// unneeded?
-//impl Error for BlisprError {}
