@@ -57,7 +57,7 @@ impl Lenv {
     }
 
     fn add_builtin(&mut self, name: &str, func: LBuiltin) {
-        self.put(name.to_string(), lval_fun(func));
+        self.put(name.to_string(), lval_fun(name, func));
     }
 
     pub fn get(&self, k: &str) -> BlisprResult {

@@ -379,7 +379,7 @@ pub fn lval_eval(mut v: Box<Lval>) -> BlisprResult {
         let fp = lval_pop(&mut v, 0)?;
         debug!("Calling function {:?} on {:?}", fp, v);
         match *fp {
-            Lval::Fun(f) => f(v),
+            Lval::Fun(_, f) => f(v),
             _ => {
                 println!("{}", *fp);
                 Err(BlisprError::UnknownFunction(format!("{}", fp)))
