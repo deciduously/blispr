@@ -391,7 +391,12 @@ pub fn lval_eval(mut v: Box<Lval>) -> BlisprResult {
     match *v {
         Lval::Sym(s) => {
             let r = ENV.read()?;
-            return Ok(r.get(&s)?);
+            let result = r.get(&s)?;
+            debug!(
+                "lval_eval: Symbol lookup - retrieved {:?} from key {}",
+                result, s
+            );
+            return Ok(result);
         }
         Lval::Sexpr(ref mut cells) => {
             debug!("lval_eval: Sexpr, evaluating children");
@@ -421,7 +426,7 @@ pub fn lval_eval(mut v: Box<Lval>) -> BlisprResult {
         debug!("Calling function {:?} on {:?}", fp, v);
         match *fp {
             Lval::Fun(lf) => match lf {
-                LvalFun::Builtin(_, f) => f(v),
+                LvalFun::Builtin(f) => f(v),
                 _ => Err(BlisprError::WrongType(
                     "builtin".to_string(),
                     "lambda".to_string(),

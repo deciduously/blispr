@@ -12,7 +12,7 @@ pub type LBuiltin = fn(Box<Lval>) -> BlisprResult;
 // There are two types of function - builtin and lambda
 #[derive(Debug, Clone, PartialEq)]
 pub enum LvalFun {
-    Builtin(String, LBuiltin),               // (name, function pointer)
+    Builtin(LBuiltin),                       // (name, function pointer)
     Lambda(Box<Lenv>, Box<Lval>, Box<Lval>), // (environment, formals, body), both should be Qexpr
 }
 
@@ -54,7 +54,7 @@ impl fmt::Display for Lval {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Lval::Fun(lf) => match lf {
-                LvalFun::Builtin(_, _) => write!(f, "<builtin>"),
+                LvalFun::Builtin(_) => write!(f, "<builtin>"),
                 LvalFun::Lambda(_, formals, body) => write!(f, "(\\ {} {})", formals, body),
             },
             Lval::Num(n) => write!(f, "{}", n),
@@ -83,8 +83,8 @@ fn lval_expr_print(cell: &[Box<Lval>]) -> String {
 // You can omit the lifetime annotations when the constructor is passed a reference
 // I included them for consistency
 
-pub fn lval_builtin(name: &str, f: LBuiltin) -> Box<Lval> {
-    Box::new(Lval::Fun(LvalFun::Builtin(name.to_string(), f)))
+pub fn lval_builtin(f: LBuiltin) -> Box<Lval> {
+    Box::new(Lval::Fun(LvalFun::Builtin(f)))
 }
 
 pub fn lval_lambda(formals: Box<Lval>, body: Box<Lval>) -> Box<Lval> {

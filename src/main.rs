@@ -11,10 +11,10 @@ mod lenv;
 mod lval;
 mod parse;
 
-use crate::error::Result;
-use parse::eval_str;
+use crate::{error::Result, parse::eval_str};
 use rustyline::{error::ReadlineError, Editor};
 use std::{
+    env::set_var,
     fs::File,
     io::{BufRead, BufReader},
     path::PathBuf,
@@ -72,7 +72,7 @@ pub fn repl() -> Result<()> {
 fn run(opt: Opt) -> Result<()> {
     // enable debug output if needed
     if opt.debug {
-        ::std::env::set_var("RUST_LOG", "blispr=debug");
+        set_var("RUST_LOG", "blispr=debug");
     }
 
     pretty_env_logger::init();
