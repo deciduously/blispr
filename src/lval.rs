@@ -9,7 +9,7 @@ pub type LBuiltin = fn(Box<Lval>) -> BlisprResult;
 // The main type - all possible Blispr values
 #[derive(Debug, Clone, PartialEq)]
 pub enum Lval {
-    Fun(String, LBuiltin),
+    Builtin(String, LBuiltin),
     Num(i64),
     Sym(String),
     Sexpr(LvalChildren),
@@ -43,7 +43,7 @@ impl Lval {
 impl fmt::Display for Lval {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Lval::Fun(name, fun) => write!(f, "<{:?}:{}>", fun, name),
+            Lval::Builtin(name, fun) => write!(f, "<{:?}:{}>", fun, name),
             Lval::Num(n) => write!(f, "{}", n),
             Lval::Sym(s) => write!(f, "{}", s),
             Lval::Sexpr(cell) => write!(f, "({})", lval_expr_print(cell)),
@@ -70,8 +70,8 @@ fn lval_expr_print(cell: &[Box<Lval>]) -> String {
 // You can omit the lifetime annotations when the constructor is passed a reference
 // I included them for consistency
 
-pub fn lval_fun(name: &str, f: LBuiltin) -> Box<Lval> {
-    Box::new(Lval::Fun(name.to_string(), f))
+pub fn lval_builtin(name: &str, f: LBuiltin) -> Box<Lval> {
+    Box::new(Lval::Builtin(name.to_string(), f))
 }
 
 pub fn lval_num(n: i64) -> Box<Lval> {

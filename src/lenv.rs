@@ -4,7 +4,7 @@
 use crate::{
     error::{BlisprError, BlisprResult},
     eval::*,
-    lval::{lval_add, lval_fun, lval_qexpr, lval_sym, LBuiltin, Lval},
+    lval::{lval_add, lval_builtin, lval_qexpr, lval_sym, LBuiltin, Lval},
 };
 use hashbrown::HashMap;
 use std::sync::{Arc, RwLock};
@@ -57,7 +57,7 @@ impl Lenv {
     }
 
     fn add_builtin(&mut self, name: &str, func: LBuiltin) {
-        self.put(name.to_string(), lval_fun(name, func));
+        self.put(name.to_string(), lval_builtin(name, func));
     }
 
     pub fn get(&self, k: &str) -> BlisprResult {
