@@ -1,12 +1,134 @@
 # Rust Your Own Lisp
 
-I whet my appetite for translating things by [orangeduck](http://theorangeduck.com/page/about) into [Rust](https://www.rust-lang.org/) with the [Markov Chain](https://dev.to/deciduously/build-you-a-markov-chain-in-rust-or-whatever-54mo), but that project really just scrathed the itch.  His book [Build Your Own Lisp](http://www.buildyourownlisp.com/) is fantastic, both as an introduction to C and an introduction to writing an interpreter, so naturally I had to give it a stab.
+It runs out translating things by [orangeduck](http://theorangeduck.com/page/about) into [Rust](https://www.rust-lang.org/) [is fun](https://dev.to/deciduously/build-you-a-markov-chain-in-rust-or-whatever-54mo).  His book [Build Your Own Lisp](http://www.buildyourownlisp.com/) is fantastic, both as an introduction to C and an introduction to writing an interpreter, so here we go again.
 
-This post is not intended to be a replacement - go read the book, its excellent.  In translating to Rust, though, there are a few differences in the code bases that are worth noting.
+This post is not intended to be a replacement for that text, by a long shot - go read the book.  It's excellent.  In translating to Rust, though, there are a few necessary differences worth noting.  The full code can be found in [this repo](https://github.com/deciduously/blispr).
+
+## The Task
+
+If you've never attempted something like this before, we need to implement a program that can take a string input like `"+ (* 3 4) 2"` and evaluate the result.  There are a few steps involved.  We need to *parse* the string into something called an [Abstract Syntax Tree] (or AST), use that AST to build an internal represnation of the program, and then *evaluate* our representation.  To do this, we'll need to semantically tag each element so that our program can methodically work its way through, understanding what each part is.  For instance, we need to know that `+` denotes a function that expects to add two numbers, and one of the numbers we're passing is passed as the result of its own computation `(* 3 4)`, which will need to be evaluated before we can attempt the addition.
+
+For better or worse, I've called this implementation `blispr`.
+
+## Lval
+
+To represent all the possible values this lisp can represent, I used a Rust `enum` called `Lval`:
+
+```rust
+type LvalChildren = Vec<Box<Lval>>;
+pub type LBuiltin = fn(Box<Lval>) -> BlisprResult;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum LvalFun {
+    Builtin(LBuiltin),                       // (function pointer)
+    Lambda(Box<Lenv>, Box<Lval>, Box<Lval>), // (environment, formals, body), both should be Qexpr
+}
+
+// The main type - all possible Blispr values
+#[derive(Debug, Clone, PartialEq)]
+pub enum Lval {
+    Fun(LvalFun),
+    Num(i64),
+    Sym(String),
+    Sexpr(LvalChildren),
+    Qexpr(LvalChildren),
+}
+```
+
+Each variant carries its contents with it.  As we read our text, each element is going to be converted into the proper type of `Lval`.    In the simple sense, a string like `"4"` is going to be parsed into `Lval::Num(4)`.  Now our pogram will understand what this `4` shindig is all about.
+
+We have numbers, symbols, functions (two different types of function - more on those later on), and two types of expression list - s-expressions and q-expressions.  S-expressions will be evaluated as code, looking for a function in the first position, and q-expressions are evaluated as just lists of data.  The whole program that's read in is going to be one big containing `Lval::Sexpr`, and we just need to evaluate it until we only have a result needing no futher evaluation, either a `Num`, `Sym`, or `Qexpr`.  As a simple example, `"+ 1 2"` is going to get stored as `Sexpr(Sym("+"), Num("1"), Num("2"))`.
+
+This code makes use of the `Box` pointer type, which is a smart pointer to a heap-allocated value.  Because an `Lval` can hold many different types of data, the size of a given `Lval` is not known at compile-time.  By only storing pointers to heap locations, we can build lists of them.  Because they adhere to Rust's ownership and borrowing semantics, Rust is going to manage cleaning them up for us when they are no longer needed.  This is how we'll manage our memory over the lifetime of the program - with quite a bit less ceremony than the corresponding C!  If we *move* a `Box<Lval>` into a function during a function call and that function returns a *brand new* `Box<Lval>`, the old one will be detected as no longer in use and dropped automatically at the end of that function.  To build a new one, we use a constructor.  For example:
+
+```rust
+pub fn lval_num(n: i64) -> Box<Lval> {
+    Box::new(Lval::Num(n))
+}
+```
+
+Theres one of these for each variant.  Calling this will allocate the appropriate space on the heap and return the pointer.  No need to futz with a desctructor - the `Box` will drop itself as soon as it can.
+
+The containing types start out with an empty `Vec` of children, and can be manipluatied with `lval_add` and `lval_pop`:
+
+```rust
+// Add lval x to lval::sexpr or lval::qexpr v
+pub fn lval_add(v: &mut Lval, x: Box<Lval>) -> Result<()> {
+    match *v {
+        Lval::Sexpr(ref mut children) | Lval::Qexpr(ref mut children) => {
+            children.push(x);
+        }
+        _ => return Err(BlisprError::NoChildren),
+    }
+    Ok(())
+}
+
+// Extract single element of sexpr at index i
+pub fn lval_pop(v: &mut Lval, i: usize) -> BlisprResult {
+    match *v {
+        Lval::Sexpr(ref mut children) | Lval::Qexpr(ref mut children) => {
+            let ret = (&children[i]).clone();
+            children.remove(i);
+            Ok(ret)
+        }
+        _ => Err(BlisprError::NoChildren),
+    }
+}
+```
+
+Both of these functions mutate their first arg, either removing or adding a child.  `Lval_add` consumes the second arg by taking ownership - it cannot be used again after adding it to another Lval.  It is now owned by the containing `Lval`.
+
+## Errors
+
+One difference from the book is that I don't have a separate specific `Lval::Err` type for handling errors in our program.  Instead, I built my own separate error type and leverage Rust-style error handling throughout:
+
+```rust
+#[derive(Debug)]
+pub enum BlisprError {
+    DivideByZero,
+    EmptyList,
+    LockError,
+    NoChildren,
+    NotANumber,
+    NumArguments(usize, usize),
+    ParseError(String),
+    ReadlineError(String),
+    WrongType(String, String),
+    UnknownFunction(String),
+}
+```
+
+To simplify the type signatures used throughout, I have a few type aliases:
+
+```rust
+pub type Result<T> = ::std::result::Result<T, BlisprError>;
+pub type BlisprResult = Result<Box<Lval>>;
+```
+
+The majority of evaluation functions are going to return a `Result<Box<Lval>, BlisprError>`, now I can just type `BlisprResult`.  The few here and there that don't have a success type of `Box<LVal>` can still use this new `Result<T>` alias instead of the more verbose built=in `Result<T, E>`, and the error type will automatically always be this `BlisprError`.  I've just provided `impl From<E> for BlisprError` for a few other types of errors that are thrown, like `std::io::Error` and `pest::error::Error`:
+
+```rust
+impl<T> From<pest::error::Error<T>> for BlisprError
+where
+    T: fmt::Debug,
+{
+    fn from(error: pest::error::Error<T>) -> Self {
+        BlisprError::ParseError(format!("{:?}", error))
+    }
+}
+
+impl From<std::io::Error> for BlisprError {
+    fn from(error: std::io::Error) -> Self {
+        BlisprError::ParseError(error.to_string())
+    }
+}
+```
+
+This way I can still use the `?` operator on function calls that return these other error types inside functions that return a `BlisprResult`, and any errors returned will be automatically converted to the proper `BlisprError` for me.  Instead of storing specific error-type `Lval`s during our evaluation that are carried through the whole computation and finally printed out, all errors are bubbled up through the type system.
 
 ## Parsing
 
-The book uses the author's own parser combinator library called [mpc](https://github.com/orangeduck/mpc).  If I were to tackle another similar problem in C, I'd likely reach for it again.  Rust, however, has its own strong ecosystem for parsing.  The two heavyweights in theis space are [nom](https://github.com/Geal/nom) and [pest](https://github.com/pest-parser/pest).  For this project I opted for pest, to stay as close to the source material as possible.  Whereas `nom` will have you defining your own [parser combinators](https://dev.to/deciduously/parser-combinators-are-easy-4bjm), with `pest` you provide a PEG (or Parsing Expression Grammar), separately from your code.  Pest then uses Rust's powerful custom derive tooling to create a parse for your grammar automatically.
+The book uses the author's own parser combinator library called [mpc](https://github.com/orangeduck/mpc).  If I were to tackle another similar problem in C, I'd likely reach for it again.  Rust, however, has its own strong ecosystem for parsing.  The two heavyweights in theis space are [nom](https://github.com/Geal/nom) and [pest](https://github.com/pest-parser/pest).  For this project I opted for pest, to stay as close to the source material as possible.  Whereas `nom` will have you defining your own [parser combinators](https://dev.to/deciduously/parser-combinators-are-easy-4bjm), with `pest` you provide a PEG (or [Parsing Expression Grammar](https://en.wikipedia.org/wiki/Parsing_expression_grammar)), separately from your code.  Pest then uses Rust's powerful custom derive tooling to create a parse for your grammar automatically.
 
 Here's the grammar I used for this langauge:
 
@@ -32,7 +154,7 @@ expr = { num | symbol | sexpr | qexpr }
 blispr = { SOI ~ expr* ~ EOI }
 ```
 
-This is stored in its own file called `blispr.pest` alongisde the source code.  Each line refines a parse rule.  I find this exceedingly readable, and easy to tweak.  It can handle comments and whitespace for you.  I also enjoy how it's maintained separately from any Rust code.  It's easy to get this working with your code:
+This is stored in its own file called `blispr.pest` alongside the source code.  Each line refines a parse rule.  I find this exceedingly readable, and easy to tweak.  Starting wrong the bottom, we see a unit of valid `blispr` consists of one or more `expr`s between the Start of Input (SOI) and End of Input (EOI).  An `expr` is any of the options given.  It can handle comments and whitespace for you.  I also enjoy how the grammar maintained completely separately from any Rust code.  It's easy to get this working with Rust:
 
 ```rust
 use pest::{iterators::Pair, Parser};
@@ -44,3 +166,48 @@ const _GRAMMAR: &str = include_str!("blispr.pest");
 #[grammar = "blispr.pest"]
 pub struct BlisprParser;
 ```
+
+Now we can use the `BlisprParser` struct to parse string input into an AST.  In order to evaluate it, though, we need to build a a big `Lval`:
+
+```rust
+fn lval_read(parsed: Pair<Rule>) -> BlisprResult {
+    match parsed.as_rule() {
+        Rule::blispr | Rule::sexpr => {
+            let mut ret = lval_sexpr();
+            for child in parsed.into_inner() {
+                if is_bracket_or_eoi(&child) {
+                    continue;
+                }
+                lval_add(&mut ret, lval_read(child)?)?;
+            }
+            Ok(ret)
+        }
+        Rule::expr => lval_read(parsed.into_inner().next().unwrap()),
+        Rule::qexpr => {
+            let mut ret = lval_qexpr();
+            for child in parsed.into_inner() {
+                if is_bracket_or_eoi(&child) {
+                    continue;
+                }
+                lval_add(&mut ret, lval_read(child)?)?;
+            }
+            Ok(ret)
+        }
+        Rule::num => Ok(lval_num(parsed.as_str().parse::<i64>()?)),
+        Rule::symbol => Ok(lval_sym(parsed.as_str())),
+        _ => unreachable!(), // COMMENT/WHITESPACE etc
+    }
+}
+
+pub fn eval_str(s: &str) -> Result<()> {
+    let parsed = BlisprParser::parse(Rule::blispr, s)?.next().unwrap();
+    debug!("{}", parsed);
+    let lval_ptr = lval_read(parsed)?;
+    debug!("Parsed: {:?}", *lval_ptr);
+    lval_eval(lval_ptr)?
+}
+```
+
+At the bottom, `lval_eval` takes a string input.  We parse it into an AST using `BlisprParser::parse()`, which attempts to build the tree using the grammar we provided.  One AST will always correspond to one `Lval`.  We pass the parsed AST into `lval_read`, which will recursively build it for us.  This function looks at the top-level rule and takes an appropriate action.  The top-level rule, `blispr`, is treated as an S-expression, and for an S-expression we allocate a new `Lval` with `lval_sexpr()`. Then every child in the AST is added as a child to this containing `Lval`, passing through `lval_read()` itself to turn it into the correct `Lval`.  The rule for `qexpr` is similar, and the other rules just create the corresponding `Lval` from the type given.  The one weird one is `Rule::expr` - this is a sort of meta-rule that matches any of the valid expression types, so it's not its onw lval, we just use `next()` to pass the actual rule found back into `lval_read()`.
+
+The result of this function will be a single `Lval::Sexpr` containing the entire parsed program.
