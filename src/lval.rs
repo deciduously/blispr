@@ -43,7 +43,7 @@ impl Lval {
 impl fmt::Display for Lval {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Lval::Fun(_) => write!(f, "<function>"),
+            Lval::Fun(fun) => write!(f, "{:?}", fun),
             Lval::Num(n) => write!(f, "{}", n),
             Lval::Sym(s) => write!(f, "{}", s),
             Lval::Sexpr(cell) => write!(f, "({})", lval_expr_print(cell)),

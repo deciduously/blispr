@@ -216,6 +216,13 @@ pub fn builtin_eval(mut v: Box<Lval>) -> BlisprResult {
     }
 }
 
+// terminate the program (or exit the prompt)
+pub fn builtin_exit(_v: Box<Lval>) -> BlisprResult {
+    // always succeeds
+    println!("Goodbye!");
+    ::std::process::exit(1);
+}
+
 // Return the first element of a qexpr
 pub fn builtin_head(mut v: Box<Lval>) -> BlisprResult {
     let mut qexpr = lval_pop(&mut v, 0)?;
@@ -309,6 +316,12 @@ pub fn builtin_len(mut v: Box<Lval>) -> BlisprResult {
         }
         _ => Err(BlisprError::NumArguments(1, child_count)),
     }
+}
+
+// Print all the named variables in the environment
+pub fn builtin_printenv(_v: Box<Lval>) -> BlisprResult {
+    // we don't use the input
+    lval_eval(ENV.read().unwrap().list_all()?)
 }
 
 pub fn builtin_tail(mut v: Box<Lval>) -> BlisprResult {

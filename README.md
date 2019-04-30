@@ -18,7 +18,7 @@ $ cargo run
     Finished dev [unoptimized + debuginfo] target(s) in 0.92s
      Running `target/debug/blispr`
 Blispr v0.0.1
-Press Ctrl-C or Ctrl-D to exit
+Press Ctrl-C or Ctrl-D or use exit() to exit prompt
 blispr> def {x} 100
 ()
 blispr> def {y} 200
@@ -60,7 +60,7 @@ You can pass `-d` or `--debug` at runtime (`cargo run -- -d` or `blispr -d`) to 
     Finished dev [unoptimized + debuginfo] target(s) in 0.04s
      Running `target/debug/blispr -d`
 Blispr v0.0.1
-Press Ctrl-C or Ctrl-D to exit
+Press Ctrl-C or Ctrl-D or use exit() to exit prompt
  DEBUG blispr::parse > Debug mode enabled
 blispr> (eval (head {^ + - + - * / /* its homoiconic! */})) 2 32
  DEBUG blispr::parse > blispr(0, 56, [expr(0, 51, [sexpr(0, 51, [expr(1, 5, [symbol(1, 5)]), expr(6, 50, [sexpr(6, 50, [expr(7, 11, [symbol(7, 11)]), expr(12, 49, [qexpr(12, 49, [expr(13, 14, [symbol(13, 14)]), expr(15, 16, [symbol(15, 16)]), expr(17, 18, [symbol(17, 18)]), expr(19, 20, [symbol(19, 20)]), expr(21, 22, [symbol(21, 22)]), expr(23, 24, [symbol(23, 24)]), expr(25, 26, [symbol(25, 26)])])])])])])]), expr(52, 53, [num(52, 53)]), expr(54, 56, [num(54, 56)]), EOI(56, 56)])
@@ -83,6 +83,19 @@ blispr> (eval (head {^ + - + - * / /* its homoiconic! */})) 2 32
 ## Currently implemented
 
 * Operators: `+ | add`, `- | sub`, `* | mul`, `/ | div`, `% | rem`, `^ | pow`, `max`, `min`
+
+* Utilties: `printenv(), exit()` (must be passed with an argument - an empty S-Expression works):
+
+```
+blispr> def {a b c d e f g h i j k l m n o p q r s t u v w x y z} 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
+()
+blispr> printenv()
+{g:7 m:13 o:15 head:0x5627a1513570 *:0x5627a1510300 f:6 list:0x5627a1514d50 p:16 printenv:0x5627a1515dc0 d:4 tail:0x5627a1516120 ^:0x5627a1510380 cons:0x5627a1511c00 j:10 sub:0x5627a15102c0 q:17 init:0x5627a1513bb0 s:19 +:0x5627a1510280 %:0x5627a15103c0 t:20 /:0x5627a1510340 v:22 w:23 y:25 z:26 mul:0x5627a1510300 join:0x5627a15143c0 exit:0x5627a15134f0 rem:0x5627a15103c0 add:0x5627a1510280 def:0x5627a1510480 pow:0x5627a1510380 h:8 div:0x5627a1510340 b:2 max:0x5627a1510400 l:12 n:14 r:18 x:24 k:11 e:5 u:21 eval:0x5627a15129a0 -:0x5627a15102c0 min:0x5627a1510440 c:3 i:9 len:0x5627a1515400 a:1}
+blispr> exit()
+Goodbye!
+
+$
+```
 
 * List operations:
 

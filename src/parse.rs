@@ -71,7 +71,7 @@ pub fn eval_str(s: &str) -> Result<(), BlisprError> {
 
 pub fn repl() -> Result<(), BlisprError> {
     println!("Blispr v0.0.1");
-    println!("Press Ctrl-C or Ctrl-D to exit");
+    println!("Press Ctrl-C or Ctrl-D or use exit() to exit prompt");
     debug!("Debug mode enabled");
 
     let mut rl = Editor::<()>::new();

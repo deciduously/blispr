@@ -4,7 +4,7 @@
 use crate::{
     error::{BlisprError, BlisprResult},
     eval::*,
-    lval::{lval_fun, LBuiltin, Lval},
+    lval::{lval_add, lval_fun, lval_qexpr, lval_sym, LBuiltin, Lval},
 };
 use hashbrown::HashMap;
 use std::sync::{Arc, RwLock};
@@ -29,10 +29,12 @@ impl Lenv {
         ret.add_builtin("def", builtin_def);
         ret.add_builtin("cons", builtin_cons);
         ret.add_builtin("eval", builtin_eval);
+        ret.add_builtin("exit", builtin_exit);
         ret.add_builtin("head", builtin_head);
         ret.add_builtin("init", builtin_init);
         ret.add_builtin("list", builtin_list);
         ret.add_builtin("join", builtin_join);
+        ret.add_builtin("printenv", builtin_printenv);
         ret.add_builtin("len", builtin_len);
         ret.add_builtin("tail", builtin_tail);
 
@@ -63,6 +65,14 @@ impl Lenv {
             Some(v) => Ok(Box::new(*v.clone())),
             None => Err(BlisprError::UnknownFunction(k.to_string())),
         }
+    }
+
+    pub fn list_all(&self) -> BlisprResult {
+        let mut ret = lval_qexpr();
+        for (k, v) in &self.lookup {
+            lval_add(&mut ret, lval_sym(&format!("{}:{}", k, v)))?;
+        }
+        Ok(ret)
     }
 
     pub fn put(&mut self, k: String, v: Box<Lval>) {
