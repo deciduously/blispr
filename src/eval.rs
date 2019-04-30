@@ -1,10 +1,11 @@
 use crate::{
     error::{BlisprError, BlisprResult},
     lenv::ENV,
-    lval::{lval_add, lval_join, lval_num, lval_pop, lval_qexpr, lval_sexpr, Lval},
+    lval::{lval_add, lval_join, lval_num, lval_pop, lval_qexpr, lval_sexpr, Lval, LvalFun},
 };
 use std::ops::{Add, Div, Mul, Rem, Sub};
 
+// macro to shorten code for applying a binary operation to two Lvals
 macro_rules! apply_binop {
     ( $op:ident, $x:ident, $y:ident ) => {
         match (*$x, *$y) {
@@ -17,6 +18,7 @@ macro_rules! apply_binop {
     };
 }
 
+// apply a binary operation: + - * / ^ % min max
 fn builtin_op(mut v: Box<Lval>, func: &str) -> BlisprResult {
     let mut child_count;
     match *v {
@@ -220,7 +222,7 @@ pub fn builtin_eval(mut v: Box<Lval>) -> BlisprResult {
 pub fn builtin_exit(_v: Box<Lval>) -> BlisprResult {
     // always succeeds
     println!("Goodbye!");
-    ::std::process::exit(1);
+    ::std::process::exit(0);
 }
 
 // Return the first element of a qexpr
@@ -379,7 +381,13 @@ pub fn lval_eval(mut v: Box<Lval>) -> BlisprResult {
         let fp = lval_pop(&mut v, 0)?;
         debug!("Calling function {:?} on {:?}", fp, v);
         match *fp {
-            Lval::Builtin(_, f) => f(v),
+            Lval::Fun(lf) => match lf {
+                LvalFun::Builtin(_, f) => f(v),
+                _ => Err(BlisprError::WrongType(
+                    "builtin".to_string(),
+                    "lambda".to_string(),
+                )),
+            },
             _ => {
                 println!("{}", *fp);
                 Err(BlisprError::UnknownFunction(format!("{}", fp)))
