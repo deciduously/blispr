@@ -237,12 +237,7 @@ pub fn eval_str(s: &str) -> Result<()> {
     debug!("{}", parsed);
     let lval_ptr = lval_read(parsed)?;
     debug!("Parsed: {:?}", *lval_ptr);
-    match lval_eval(lval_ptr) {
-        Ok(r) => {
-            println!("{}", r);
-        }
-        Err(e) => eprintln!("Error: {}", e),
-    };
+    println!("{}", lval_eval(lval_ptr)?);
     Ok(())
 }
 ```
