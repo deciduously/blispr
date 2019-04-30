@@ -1,5 +1,5 @@
 use crate::{
-    error::{BlisprError, BlisprResult},
+    error::{BlisprError, BlisprResult, Result},
     lenv::Lenv,
 };
 use std::fmt;
@@ -27,13 +27,13 @@ pub enum Lval {
 }
 
 impl Lval {
-    pub fn as_num(&self) -> Result<i64, BlisprError> {
+    pub fn as_num(&self) -> Result<i64> {
         match *self {
             Lval::Num(n_num) => Ok(n_num),
             _ => Err(BlisprError::NotANumber),
         }
     }
-    pub fn as_string(&self) -> Result<String, BlisprError> {
+    pub fn as_string(&self) -> Result<String> {
         match self {
             Lval::Sym(s) => Ok(s.to_string()),
             _ => Err(BlisprError::WrongType(
@@ -42,7 +42,7 @@ impl Lval {
             )),
         }
     }
-    pub fn len(&self) -> Result<usize, BlisprError> {
+    pub fn len(&self) -> Result<usize> {
         match *self {
             Lval::Sexpr(ref children) | Lval::Qexpr(ref children) => Ok(children.len()),
             _ => Err(BlisprError::NoChildren),
@@ -114,7 +114,7 @@ pub fn lval_qexpr() -> Box<Lval> {
 // Manipulating children
 
 // Add lval x to lval::sexpr or lval::qexpr v
-pub fn lval_add(v: &mut Lval, x: Box<Lval>) -> Result<(), BlisprError> {
+pub fn lval_add(v: &mut Lval, x: Box<Lval>) -> Result<()> {
     match *v {
         Lval::Sexpr(ref mut children) | Lval::Qexpr(ref mut children) => {
             children.push(x);
@@ -137,7 +137,7 @@ pub fn lval_pop(v: &mut Lval, i: usize) -> BlisprResult {
 }
 
 // Add each cell in y to x
-pub fn lval_join(x: &mut Lval, mut y: Box<Lval>) -> Result<(), BlisprError> {
+pub fn lval_join(x: &mut Lval, mut y: Box<Lval>) -> Result<()> {
     while y.len()? > 0 {
         lval_add(x, lval_pop(&mut y, 0)?)?;
     }

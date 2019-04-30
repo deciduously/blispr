@@ -11,7 +11,9 @@ mod lenv;
 mod lval;
 mod parse;
 
-use parse::{eval_str, repl};
+use crate::error::Result;
+use parse::eval_str;
+use rustyline::{error::ReadlineError, Editor};
 use std::{
     fs::File,
     io::{BufRead, BufReader},
@@ -29,6 +31,42 @@ struct Opt {
     /// input file
     #[structopt(short = "i", long = "input")]
     input: Option<PathBuf>,
+}
+
+pub fn repl() -> Result<()> {
+    println!("Blispr v0.0.1");
+    println!("Press Ctrl-C or Ctrl-D or use exit() to exit prompt");
+    debug!("Debug mode enabled");
+
+    let mut rl = Editor::<()>::new();
+    if rl.load_history("./.blispr-history.txt").is_err() {
+        println!("No history found.");
+    }
+
+    loop {
+        let input = rl.readline("blispr> ");
+
+        match input {
+            Ok(line) => {
+                rl.add_history_entry(line.as_ref());
+                eval_str(&line)?;
+            }
+            Err(ReadlineError::Interrupted) => {
+                info!("CTRL-C");
+                break;
+            }
+            Err(ReadlineError::Eof) => {
+                info!("CTRL-D");
+                break;
+            }
+            Err(err) => {
+                warn!("Error: {:?}", err);
+                break;
+            }
+        }
+    }
+    rl.save_history("./.blispr-history.txt")?;
+    Ok(())
 }
 
 fn main() {

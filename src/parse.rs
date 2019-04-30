@@ -1,10 +1,9 @@
 use crate::{
-    error::BlisprError,
+    error::{BlisprResult, Result},
     eval::lval_eval,
-    lval::{lval_add, lval_num, lval_qexpr, lval_sexpr, lval_sym, Lval},
+    lval::{lval_add, lval_num, lval_qexpr, lval_sexpr, lval_sym},
 };
 use pest::{iterators::Pair, Parser};
-use rustyline::{error::ReadlineError, Editor};
 
 #[cfg(debug_assertions)]
 const _GRAMMAR: &str = include_str!("blispr.pest");
@@ -21,7 +20,7 @@ fn is_bracket_or_eoi(parsed: &Pair<Rule>) -> bool {
     c == "(" || c == ")" || c == "{" || c == "}"
 }
 
-fn lval_read(parsed: Pair<Rule>) -> Result<Box<Lval>, BlisprError> {
+fn lval_read(parsed: Pair<Rule>) -> BlisprResult {
     match parsed.as_rule() {
         Rule::blispr | Rule::sexpr => {
             let mut ret = lval_sexpr();
@@ -45,18 +44,14 @@ fn lval_read(parsed: Pair<Rule>) -> Result<Box<Lval>, BlisprError> {
             }
             Ok(ret)
         }
-        Rule::num => Ok(lval_num(parsed.as_str().parse::<i64>().unwrap())),
+        Rule::num => Ok(lval_num(parsed.as_str().parse::<i64>()?)),
         Rule::symbol => Ok(lval_sym(parsed.as_str())),
         _ => unreachable!(), // COMMENT/WHITESPACE etc
     }
 }
 
-pub fn eval_str(s: &str) -> Result<(), BlisprError> {
-    let parsed = match BlisprParser::parse(Rule::blispr, s) {
-        Ok(mut iter) => iter.next().unwrap(),
-        // TODO impl From<pest::Error> for BlisprError
-        Err(err) => return Err(BlisprError::ParseError(err.to_string())),
-    };
+pub fn eval_str(s: &str) -> Result<()> {
+    let parsed = BlisprParser::parse(Rule::blispr, s)?.next().unwrap();
     debug!("{}", parsed);
     let lval_ptr = lval_read(parsed)?;
     debug!("Parsed: {:?}", *lval_ptr);
@@ -66,41 +61,5 @@ pub fn eval_str(s: &str) -> Result<(), BlisprError> {
         }
         Err(e) => eprintln!("Error: {}", e),
     };
-    Ok(())
-}
-
-pub fn repl() -> Result<(), BlisprError> {
-    println!("Blispr v0.0.1");
-    println!("Press Ctrl-C or Ctrl-D or use exit() to exit prompt");
-    debug!("Debug mode enabled");
-
-    let mut rl = Editor::<()>::new();
-    if rl.load_history("./.blispr-history.txt").is_err() {
-        println!("No history found.");
-    }
-
-    loop {
-        let input = rl.readline("blispr> ");
-
-        match input {
-            Ok(line) => {
-                rl.add_history_entry(line.as_ref());
-                eval_str(&line)?;
-            }
-            Err(ReadlineError::Interrupted) => {
-                info!("CTRL-C");
-                break;
-            }
-            Err(ReadlineError::Eof) => {
-                info!("CTRL-D");
-                break;
-            }
-            Err(err) => {
-                warn!("Error: {:?}", err);
-                break;
-            }
-        }
-    }
-    rl.save_history("./.blispr-history.txt").unwrap();
     Ok(())
 }

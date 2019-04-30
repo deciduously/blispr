@@ -157,7 +157,7 @@ pub fn builtin_def(mut a: Box<Lval>) -> BlisprResult {
                 Err(BlisprError::NumArguments(names_len, vals_len))
             } else {
                 // grab write lock on ENV
-                let mut w = ENV.write().unwrap();
+                let mut w = ENV.write()?;
                 for (k, v) in names.iter().zip(vals.iter()) {
                     debug!("adding key, value pair {:?}, {:?} to env", k, v);
                     let name = k.clone().as_string()?;
@@ -362,7 +362,7 @@ pub fn builtin_len(mut v: Box<Lval>) -> BlisprResult {
 // Print all the named variables in the environment
 pub fn builtin_printenv(_v: Box<Lval>) -> BlisprResult {
     // we don't use the input
-    lval_eval(ENV.read().unwrap().list_all()?)
+    lval_eval(ENV.read()?.list_all()?)
 }
 
 pub fn builtin_tail(mut v: Box<Lval>) -> BlisprResult {
@@ -390,7 +390,7 @@ pub fn lval_eval(mut v: Box<Lval>) -> BlisprResult {
     let child_count;
     match *v {
         Lval::Sym(s) => {
-            let r = ENV.read().unwrap();
+            let r = ENV.read()?;
             return Ok(r.get(&s)?);
         }
         Lval::Sexpr(ref mut cells) => {

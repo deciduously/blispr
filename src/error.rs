@@ -1,19 +1,22 @@
 use crate::lval::Lval;
-use std::fmt;
+use std::{fmt, string::ToString};
 
 #[derive(Debug)]
 pub enum BlisprError {
     DivideByZero,
     EmptyList,
+    LockError,
     NoChildren,
     NotANumber,
     NumArguments(usize, usize),
     ParseError(String),
+    ReadlineError(String),
     WrongType(String, String),
     UnknownFunction(String),
 }
 
-pub type BlisprResult = Result<Box<Lval>, BlisprError>;
+pub type Result<T> = ::std::result::Result<T, BlisprError>;
+pub type BlisprResult = Result<Box<Lval>>;
 
 impl fmt::Display for BlisprError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -21,6 +24,7 @@ impl fmt::Display for BlisprError {
         match self {
             DivideByZero => write!(f, "Divide by zero"),
             EmptyList => write!(f, "Empty list"),
+            LockError => write!(f, "Could not obtain lock on global environment!"),
             NoChildren => write!(f, "Lval has no children"),
             NotANumber => write!(f, "NaN"),
             NumArguments(expected, received) => write!(
@@ -29,6 +33,7 @@ impl fmt::Display for BlisprError {
                 expected, received
             ),
             ParseError(s) => write!(f, "Parse error: {}", s),
+            ReadlineError(s) => write!(f, "Readline error: {}", s),
             WrongType(expected, received) => write!(
                 f,
                 "Wrong type: expected {}, received {}",
@@ -36,6 +41,33 @@ impl fmt::Display for BlisprError {
             ),
             UnknownFunction(func_name) => write!(f, "Unknown function {}", func_name),
         }
+    }
+}
+
+impl<T> From<pest::error::Error<T>> for BlisprError
+where
+    T: fmt::Debug,
+{
+    fn from(error: pest::error::Error<T>) -> Self {
+        BlisprError::ParseError(format!("{:?}", error))
+    }
+}
+
+impl From<std::num::ParseIntError> for BlisprError {
+    fn from(_error: std::num::ParseIntError) -> Self {
+        BlisprError::NotANumber
+    }
+}
+
+impl<T> From<std::sync::PoisonError<T>> for BlisprError {
+    fn from(_error: std::sync::PoisonError<T>) -> Self {
+        BlisprError::LockError
+    }
+}
+
+impl From<rustyline::error::ReadlineError> for BlisprError {
+    fn from(error: rustyline::error::ReadlineError) -> Self {
+        BlisprError::ReadlineError(error.to_string())
     }
 }
 
