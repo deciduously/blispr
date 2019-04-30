@@ -15,7 +15,7 @@ lazy_static! {
 
 pub type LenvT = Arc<RwLock<Lenv>>;
 
-#[derive(PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Lenv {
     lookup: HashMap<String, Box<Lval>>,
 }
@@ -32,6 +32,7 @@ impl Lenv {
         ret.add_builtin("exit", builtin_exit);
         ret.add_builtin("head", builtin_head);
         ret.add_builtin("init", builtin_init);
+        ret.add_builtin("lambda", builtin_lambda);
         ret.add_builtin("list", builtin_list);
         ret.add_builtin("join", builtin_join);
         ret.add_builtin("printenv", builtin_printenv);

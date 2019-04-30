@@ -1,7 +1,9 @@
 use crate::{
     error::{BlisprError, BlisprResult},
     lenv::ENV,
-    lval::{lval_add, lval_join, lval_num, lval_pop, lval_qexpr, lval_sexpr, Lval, LvalFun},
+    lval::{
+        lval_add, lval_join, lval_lambda, lval_num, lval_pop, lval_qexpr, lval_sexpr, Lval, LvalFun,
+    },
 };
 use std::ops::{Add, Div, Mul, Rem, Sub};
 
@@ -282,6 +284,43 @@ pub fn builtin_join(mut v: Box<Lval>) -> BlisprResult {
         }
     }
     Ok(ret)
+}
+
+//builtin_lambda returns a lambda lval from two lists of symbols
+pub fn builtin_lambda(mut v: Box<Lval>) -> BlisprResult {
+    // ensure there's only two arguments
+    let child_count = v.len()?;
+    if child_count != 2 {
+        return Err(BlisprError::NumArguments(2, child_count));
+    }
+
+    // first qexpr should contain only symbols - lval.as_string().is_ok()
+    let formals = lval_pop(&mut v, 0)?;
+    let formals_ret = formals.clone(); // ewwww but it gets moved on me?!
+    let body = lval_pop(&mut v, 0)?;
+    match *formals {
+        Lval::Qexpr(contents) => {
+            for cell in contents {
+                if cell.as_string().is_err() {
+                    return Err(BlisprError::WrongType(
+                        "Symbol".to_string(),
+                        format!("{:?}", cell),
+                    ));
+                }
+            }
+            match *body {
+                Lval::Qexpr(_) => Ok(lval_lambda(formals_ret, body)),
+                _ => Err(BlisprError::WrongType(
+                    "Q-Expression".to_string(),
+                    format!("{:?}", body),
+                )),
+            }
+        }
+        _ => Err(BlisprError::WrongType(
+            "Q-Expression".to_string(),
+            format!("{:?}", formals),
+        )),
+    }
 }
 
 // make sexpr into a qexpr

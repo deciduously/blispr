@@ -89,8 +89,10 @@ blispr> (eval (head {^ + - + - * / /* its homoiconic! */})) 2 32
 ```
 blispr> def {a b c d e f g h i j k l m n o p q r s t u v w x y z} 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
 ()
+blispr> def {func} {lambda {3 4} {+ a b}}
+()
 blispr> printenv()
-{g:7 m:13 o:15 head:<0x55970164f660:head> *:<0x55970164c400:*> f:6 list:<0x559701650e40:list> p:16 printenv:<0x559701651ea0:printenv> d:4 tail:<0x559701652200:tail> ^:<0x55970164c480:^> cons:<0x55970164dd00:cons> j:10 sub:<0x55970164c3c0:sub> q:17 init:<0x55970164fca0:init> s:19 +:<0x55970164c380:+> %:<0x55970164c4c0:%> t:20 /:<0x55970164c440:/> v:22 w:23 y:25 z:26 mul:<0x55970164c400:mul> join:<0x5597016504b0:join> exit:<0x55970164f5e0:exit> rem:<0x55970164c4c0:rem> add:<0x55970164c380:add> def:<0x55970164c580:def> pow:<0x55970164c480:pow> h:8 div:<0x55970164c440:div> b:2 max:<0x55970164c500:max> l:12 n:14 r:18 x:24 k:11 e:5 u:21 eval:<0x55970164eaa0:eval> -:<0x55970164c3c0:-> min:<0x55970164c540:min> c:3 i:9 len:<0x5597016514e0:len> a:1}
+{g:7 m:13 o:15 head:<builtin> *:<builtin> f:6 list:<builtin> p:16 printenv:<builtin> d:4 tail:<builtin> ^:<builtin> cons:<builtin> j:10 sub:<builtin> q:17 init:<builtin> s:19 +:<builtin> %:<builtin> t:20 /:<builtin> u:21 v:22 w:23 y:25 z:26 func:{lambda {3 4} {+ a b}} mul:<builtin> join:<builtin> exit:<builtin> rem:<builtin> add:<builtin> def:<builtin> pow:<builtin> h:8 div:<builtin> b:2 max:<builtin> l:12 n:14 r:18 x:24 lambda:<builtin> e:5 k:11 eval:<builtin> -:<builtin> min:<builtin> c:3 i:9 len:<builtin> a:1}
 blispr> exit()
 Goodbye!
 

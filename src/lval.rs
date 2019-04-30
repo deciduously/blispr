@@ -1,4 +1,7 @@
-use crate::error::{BlisprError, BlisprResult};
+use crate::{
+    error::{BlisprError, BlisprResult},
+    lenv::Lenv,
+};
 use std::fmt;
 
 // The recursive types hold their children in one of these bad boys
@@ -9,8 +12,8 @@ pub type LBuiltin = fn(Box<Lval>) -> BlisprResult;
 // There are two types of function - builtin and lambda
 #[derive(Debug, Clone, PartialEq)]
 pub enum LvalFun {
-    Builtin(String, LBuiltin),    // (name, function pointer)
-    Lambda(Box<Lval>, Box<Lval>), // (formals, body), both should be Qexpr
+    Builtin(String, LBuiltin),               // (name, function pointer)
+    Lambda(Box<Lenv>, Box<Lval>, Box<Lval>), // (environment, formals, body), both should be Qexpr
 }
 
 // The main type - all possible Blispr values
@@ -51,8 +54,8 @@ impl fmt::Display for Lval {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Lval::Fun(lf) => match lf {
-                LvalFun::Builtin(name, fun) => write!(f, "<{:?}:{}>", fun, name),
-                LvalFun::Lambda(formals, _) => write!(f, "<lamdba: {}>", formals),
+                LvalFun::Builtin(_, _) => write!(f, "<builtin>"),
+                LvalFun::Lambda(_, formals, body) => write!(f, "(\\ {} {})", formals, body),
             },
             Lval::Num(n) => write!(f, "{}", n),
             Lval::Sym(s) => write!(f, "{}", s),
@@ -82,6 +85,14 @@ fn lval_expr_print(cell: &[Box<Lval>]) -> String {
 
 pub fn lval_builtin(name: &str, f: LBuiltin) -> Box<Lval> {
     Box::new(Lval::Fun(LvalFun::Builtin(name.to_string(), f)))
+}
+
+pub fn lval_lambda(formals: Box<Lval>, body: Box<Lval>) -> Box<Lval> {
+    Box::new(Lval::Fun(LvalFun::Lambda(
+        Box::new(Lenv::new()),
+        formals,
+        body,
+    )))
 }
 
 pub fn lval_num(n: i64) -> Box<Lval> {
