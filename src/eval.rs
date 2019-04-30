@@ -20,7 +20,7 @@ macro_rules! apply_binop {
     };
 }
 
-// apply a binary operation: + - * / ^ % min max
+// apply a binary operation {+ - * / ^ % min max} to a list of arguments in succession
 fn builtin_op(mut v: Box<Lval>, func: &str) -> BlisprResult {
     let mut child_count;
     match *v {

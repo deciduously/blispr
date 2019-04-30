@@ -22,7 +22,7 @@ S-Expression(
 )
 ```
 
-The whole program is represented as an [S-Expression](https://en.wikipedia.org/wiki/S-expression).  When our program sees one of these, it's going to try to execute it as a function call, looking up the function from the symbol in the first position.  First, though, it's going to recursively evaluate all of its children - so if any of them are themselves s-expressions, we'll get them into values we can work with first.  In this example, the inner S-Expression `(* 3 4)` will be evaluated first:
+The whole program is represented as an [S-Expression](https://en.wikipedia.org/wiki/S-expression).  When our program sees one of these with multiple elements, it's going to try to execute it as a function call, looking up the function from the symbol in the first position.  First, though, it's going to recursively evaluate all of its children - so if any of them are themselves s-expressions, we'll get them into values we can work with first.  In this example, the inner S-Expression `(* 3 4)` will be evaluated first:
 
 ```rust
 S-Expression(
@@ -82,7 +82,7 @@ pub fn lval_num(n: i64) -> Box<Lval> {
 
 Theres one of these for each variant.  Calling this will allocate the appropriate space with `Box::new()` on the heap and return the pointer.  No need to futz with a destructor - the `Box` will drop itself as soon as it can.
 
-The containing types start out with an empty `Vec` of children, and can be manipluatied with `lval_add` and `lval_pop`:
+The containing types start out with an empty `Vec` of children, and can be manipulated with `lval_add` and `lval_pop`:
 
 ```rust
 // Add lval x to lval::sexpr or lval::qexpr v
@@ -109,11 +109,11 @@ pub fn lval_pop(v: &mut Lval, i: usize) -> BlisprResult {
 }
 ```
 
-Both of these functions mutate their first arg, either removing or adding a child.  `Lval_add` consumes the second arg by taking ownership - it cannot be used again after adding it to another Lval.  It is now owned by the containing `Lval`.
+Both of these functions mutate their first argument in place, either removing or adding a child.  `Lval_add` consumes the second arg by taking ownership - it cannot be used again after adding it to another Lval because it is now owned by the containing `Lval`.
 
 ## Errors
 
-One difference from the book is that I don't have a separate specific `Lval::Err` type for handling errors in our program.  Instead, I built my own separate error type and leverage Rust-style error handling throughout:
+One difference from the book's implementation is that I don't have a separate specific `Lval::Err` type for handling errors in our program.  Instead, I built a separate error type and leverage `Result<T, E>`-style error handling throughout:
 
 ```rust
 #[derive(Debug)]
@@ -134,19 +134,19 @@ pub enum BlisprError {
 To simplify the type signatures used throughout, I have a few type aliases:
 
 ```rust
-pub type Result<T> = ::std::result::Result<T, BlisprError>;
+pub type Result<T> = std::result::Result<T, BlisprError>;
 pub type BlisprResult = Result<Box<Lval>>;
 ```
 
-The majority of evaluation functions are going to return a `Result<Box<Lval>, BlisprError>`, now I can just type `BlisprResult`.  The few here and there that don't have a success type of `Box<LVal>` can still use this new `Result<T>` alias instead of the more verbose built=in `Result<T, E>`, and the error type will automatically always be this `BlisprError`.  I've just provided `impl From<E> for BlisprError` for a few other types of errors that are thrown, like `std::io::Error` and `pest::error::Error` for example:
+The majority of evaluation functions are going to return a `Result<Box<Lval>, BlisprError>`, now I can just type `BlisprResult`.  The few here and there that don't have a success type of `Box<LVal>` can still use this new `Result<T>` alias instead of the more verbose built-in `Result<T, E>`, and the error type will automatically always be this `BlisprError`.  WHich is what we want!  In order to be able to use this throughout our entire program, I've provided `impl From<E> for BlisprError` for a few other types of errors that are thrown, like `std::io::Error` and `pest::error::Error` for example:
 
 ```rust
 impl<T> From<pest::error::Error<T>> for BlisprError
 where
-    T: fmt::Debug,
+    T: Debug + Ord + Copy + Hash,
 {
     fn from(error: pest::error::Error<T>) -> Self {
-        BlisprError::ParseError(format!("{:?}", error))
+        BlisprError::ParseError(format!("{}", error))
     }
 }
 
@@ -157,13 +157,26 @@ impl From<std::io::Error> for BlisprError {
 }
 ```
 
-This way I can still use the `?` operator on function calls that return these other error types inside functions that return a `BlisprResult`, and any errors returned will be automatically converted to the proper `BlisprError` for me.  Instead of storing specific error-type `Lval`s during our evaluation that are carried through the whole computation and finally printed out, all errors are bubbled up through the type system.
+This way I can still use the `?` operator on function calls that return these other error types inside functions that return a `BlisprResult`, and any errors returned will be automatically converted to the proper `BlisprError` for me.  Instead of storing specific error-type `Lval`s during our evaluation that are carried through the whole computation and finally printed out, all errors are bubbled up through the type system, but you still get the full `pest`-generated error carried along:
+
+```
+blispr> {{(+}}
+Parse error:  --> 1:5
+  |
+1 | {{(+}}
+  |     ^---
+  |
+  = expected expr
+blispr> 
+```
+
+Full disclosure: to write the `pest::error::Error<T>` block, I just wrote what I wanted, i.e. `BlisprError::ParseError(format!("{}", error))` and appeased the compiler.  There is likely a better way to go about this but it works!
 
 ## Parsing
 
-The book uses the author's own parser combinator library called [mpc](https://github.com/orangeduck/mpc).  If I were to tackle another similar problem in C, I'd likely reach for it again.  Rust, however, has its own strong ecosystem for parsing.  The two heavyweights in theis space are [nom](https://github.com/Geal/nom) and [pest](https://github.com/pest-parser/pest).  For this project I opted for pest, to stay as close to the source material as possible.  Whereas `nom` will have you defining your own [parser combinators](https://dev.to/deciduously/parser-combinators-are-easy-4bjm), with `pest` you provide a PEG (or [Parsing Expression Grammar](https://en.wikipedia.org/wiki/Parsing_expression_grammar)), separately from your code.  Pest then uses Rust's powerful custom derive tooling to create a parse for your grammar automatically.
+The book uses the author's own parser combinator library called [mpc](https://github.com/orangeduck/mpc).  If I were to tackle another similar problem in C, I'd likely reach for it again.  Rust, however, has its own strong ecosystem for parsing.  The two heavyweights in this space are [nom](https://github.com/Geal/nom) and [pest](https://github.com/pest-parser/pest).  For this project I opted for pest, to stay as close to the source material as possible.  Whereas `nom` will have you defining your own [parser combinators](https://dev.to/deciduously/parser-combinators-are-easy-4bjm), with `pest` you provide a PEG (or [Parsing Expression Grammar](https://en.wikipedia.org/wiki/Parsing_expression_grammar)), separately from your code.  Pest then uses Rust's powerful custom derive tooling to create a parse for your grammar automatically.
 
-Here's the grammar I used for this langauge:
+Here's the grammar I used for this language:
 
 ```pest
 COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
@@ -234,9 +247,7 @@ fn lval_read(parsed: Pair<Rule>) -> BlisprResult {
 
 pub fn eval_str(s: &str) -> Result<()> {
     let parsed = BlisprParser::parse(Rule::blispr, s)?.next().unwrap();
-    debug!("{}", parsed);
     let lval_ptr = lval_read(parsed)?;
-    debug!("Parsed: {:?}", *lval_ptr);
     println!("{}", lval_eval(lval_ptr)?);
     Ok(())
 }

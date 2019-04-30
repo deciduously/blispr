@@ -49,7 +49,11 @@ pub fn repl() -> Result<()> {
         match input {
             Ok(line) => {
                 rl.add_history_entry(line.as_ref());
-                eval_str(&line)?;
+                // if eval_str is an error, we want to catch it here, inside the loop, but still show the next prompt
+                // just using ? would bubble it up to main()
+                if let Err(e) = eval_str(&line) {
+                    eprintln!("{}", e);
+                }
             }
             Err(ReadlineError::Interrupted) => {
                 info!("CTRL-C");

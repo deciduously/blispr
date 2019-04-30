@@ -1,5 +1,5 @@
 use crate::lval::Lval;
-use std::{fmt, string::ToString};
+use std::{cmp::Ord, fmt::{self, Debug}, hash::Hash, marker::Copy, string::ToString};
 
 #[derive(Debug)]
 pub enum BlisprError {
@@ -15,7 +15,7 @@ pub enum BlisprError {
     UnknownFunction(String),
 }
 
-pub type Result<T> = ::std::result::Result<T, BlisprError>;
+pub type Result<T> = std::result::Result<T, BlisprError>;
 pub type BlisprResult = Result<Box<Lval>>;
 
 impl fmt::Display for BlisprError {
@@ -46,10 +46,10 @@ impl fmt::Display for BlisprError {
 
 impl<T> From<pest::error::Error<T>> for BlisprError
 where
-    T: fmt::Debug,
+    T: Debug + Ord + Copy + Hash,
 {
     fn from(error: pest::error::Error<T>) -> Self {
-        BlisprError::ParseError(format!("{:?}", error))
+        BlisprError::ParseError(format!("{}", error))
     }
 }
 
