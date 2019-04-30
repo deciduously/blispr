@@ -311,7 +311,18 @@ Getting a value from the enviroment will return a brand new `Lval` with a copy o
 
 ## Eval
 
-The `lval_eval()` called in `eval_str()` is where the real crunching happens.  Here's the whole thing:
+The `lval_eval()` called in `eval_str()` is where the real crunching happens.  This will take an `Lval` and evaluate it as fully as it can.  Most types of `Lval` are already evaluated fully - but any `S-Expression` found will need to be evaluated, and any `Symbol` gets looked up in the environment.
+
+Before looking at the Rust, let's break it down in English:
+
+1. Check the type of Lval.
+    a. Fun | Num | Qexpr - we're done - return lval as is.
+    b. Symbol - Do an environment lookup - e.g., for `Sym("x")`, see if we have a value stored at name `"x"`.  Return result of lookup.
+    c. Sexpr - Evaluate the S-Expression
+2. If we made it to this step, we're working with an S-Expression.  Everything else has already returned. Before going further, fully evaluate all children with `lval_eval()`
+3. 
+
+Here's the whole thing:
 
 ```rust
 pub fn lval_eval(mut v: Box<Lval>) -> BlisprResult {
@@ -369,5 +380,5 @@ pub fn lval_eval(mut v: Box<Lval>) -> BlisprResult {
 }
 ```
 
-This will take an `Lval` and evaluate it as fully as it can.  Most types of `Lval` are already evaluated fully - but any `S-Expression` found will need to be evaluated, and any `Symbol` gets looked up in the environment.
+
 
