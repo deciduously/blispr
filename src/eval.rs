@@ -5,7 +5,10 @@ use crate::{
         lval_add, lval_join, lval_lambda, lval_num, lval_pop, lval_qexpr, lval_sexpr, Lval, LvalFun,
     },
 };
-use std::ops::{Add, Div, Mul, Rem, Sub};
+use std::{
+    ops::{Add, Div, Mul, Rem, Sub},
+    sync::Arc,
+};
 
 // macro to shorten code for applying a binary operation to two Lvals
 macro_rules! apply_binop {
@@ -140,7 +143,9 @@ pub fn builtin_min(a: Box<Lval>) -> BlisprResult {
 }
 
 // define a list of values
-pub fn builtin_def(mut a: Box<Lval>) -> BlisprResult {
+// if "def" define in global env
+// if "=" define in local env
+fn builtin_var(mut a: Box<Lval>, func: &str) -> BlisprResult {
     let args = lval_pop(&mut a, 0)?;
     match *args {
         Lval::Qexpr(names) => {
@@ -151,7 +156,7 @@ pub fn builtin_def(mut a: Box<Lval>) -> BlisprResult {
             }
             let names_len = names.len();
             let vals_len = vals.len();
-            debug!("builtin_def: names: {:?} | vals: {:?}", names, vals);
+            debug!("builtin_var: names: {:?} | vals: {:?}", names, vals);
             // TODO assert all symbols?
             if vals_len != names_len {
                 Err(BlisprError::NumArguments(names_len, vals_len))
@@ -159,9 +164,14 @@ pub fn builtin_def(mut a: Box<Lval>) -> BlisprResult {
                 // grab write lock on ENV
                 let mut w = ENV.write()?;
                 for (k, v) in names.iter().zip(vals.iter()) {
-                    debug!("adding key, value pair {:?}, {:?} to env", k, v);
+                    let scope = if func == "def" { "global" } else { "local" };
+                    debug!("adding key, value pair {:?}, {:?} to {} env", k, v, scope);
                     let name = k.clone().as_string()?;
-                    w.put(name, v.clone());
+                    if scope == "local" {
+                        w.put(name, v.clone());
+                    } else {
+                        w.def(name, v.clone())?;
+                    }
                 }
                 Ok(lval_sexpr())
 
@@ -173,6 +183,14 @@ pub fn builtin_def(mut a: Box<Lval>) -> BlisprResult {
             format!("{:?}", args),
         )),
     }
+}
+
+pub fn builtin_def(v: Box<Lval>) -> BlisprResult {
+    builtin_var(v, "def")
+}
+
+pub fn builtin_put(v: Box<Lval>) -> BlisprResult {
+    builtin_var(v, "=")
 }
 
 // Attach a value to the front of a qexpr
@@ -383,6 +401,84 @@ pub fn builtin_tail(mut v: Box<Lval>) -> BlisprResult {
             "qexpr".to_string(),
             format!("{:?}", qexpr),
         )),
+    }
+}
+
+// Call a Lval::Fun(f) on an argument list
+// This will handle both builtins and lambdas
+pub fn lval_call(f: Box<Lval>, mut e: Box<Lval>) -> BlisprResult {
+    match *f {
+        Lval::Fun(func) => {
+            match func {
+                // If it's a builtin, just call the function pointer
+                LvalFun::Builtin(fp) => return fp(e),
+                LvalFun::Lambda(mut env, mut formals, body) => {
+                    // If it's a Lambda, bind arguments to env
+                    // first grab the argument and body
+                    let given = e.len()?;
+                    let total = formals.len()?;
+
+                    while e.len()? > 0 {
+                        // if we've run out of args to bind, error
+                        if formals.len()? == 0 {
+                            return Err(BlisprError::NumArguments(total, given));
+                        }
+
+                        // grab first symbol from formals
+                        let sym = lval_pop(&mut formals, 0)?;
+
+                        // grab next argument from list
+                        let val = lval_pop(&mut e, 0)?;
+
+                        // bind a copy to the function's environment
+                        env.put(sym.as_string()?, val);
+                    }
+                }
+            }
+        }
+        _ => {
+            return Err(BlisprError::WrongType(
+                "Function".to_string(),
+                format!("{:?}", f),
+            ))
+        }
+    }
+    // if all formals have been bound
+    let mut env;
+    let mut formals;
+    let mut body;
+
+    match *f {
+        Lval::Fun(f) => {
+            let triple = f.lambda_tuple()?;
+            env = triple.0;
+            formals = triple.1;
+            body = triple.2;
+        }
+        _ => {
+            return Err(BlisprError::WrongType(
+                "lambda".to_string(),
+                format!("{:?}", f),
+            ))
+        }
+    }
+
+    if formals.len()? == 0 {
+        // set environment parent to evaluation environment
+        // TODO is this fucked?  Do I need to be passing it in?
+        // The book is passing the env around as an arg
+        // Im worried I'll need to do that
+        // This worked fine for global, not sure it will recur
+        env.parent = Some(Arc::clone(&ENV));
+
+        // Evaluate and return
+        let mut ret = lval_sexpr();
+        lval_add(&mut ret, body)?;
+        lval_eval(ret)
+    } else {
+        // Otherwise return partially evaluated function
+        let ret = f.clone();
+        Ok(ret)
     }
 }
 

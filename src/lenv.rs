@@ -18,7 +18,7 @@ pub type LenvT = Arc<RwLock<Lenv>>;
 #[derive(Debug, Clone)]
 pub struct Lenv {
     lookup: HashMap<String, Box<Lval>>,
-    parent: Option<LenvT>,
+    pub parent: Option<LenvT>,
 }
 
 impl Lenv {
@@ -28,19 +28,26 @@ impl Lenv {
             parent,
         };
 
+        // Definiton
+        ret.add_builtin("\\", builtin_lambda);
         ret.add_builtin("def", builtin_def);
+        ret.add_builtin("=", builtin_put);
+
+        // List manipulation
         ret.add_builtin("cons", builtin_cons);
         ret.add_builtin("eval", builtin_eval);
-        ret.add_builtin("exit", builtin_exit);
         ret.add_builtin("head", builtin_head);
         ret.add_builtin("init", builtin_init);
-        ret.add_builtin("\\", builtin_lambda);
         ret.add_builtin("list", builtin_list);
         ret.add_builtin("join", builtin_join);
-        ret.add_builtin("printenv", builtin_printenv);
         ret.add_builtin("len", builtin_len);
         ret.add_builtin("tail", builtin_tail);
 
+        // Utility
+        ret.add_builtin("exit", builtin_exit);
+        ret.add_builtin("printenv", builtin_printenv);
+
+        // Arithmetic
         ret.add_builtin("+", builtin_add);
         ret.add_builtin("add", builtin_add);
         ret.add_builtin("-", builtin_sub);
