@@ -73,7 +73,7 @@ impl Lenv {
                 Ok(())
             }
             None => {
-                &mut self.put(k, v);
+                self.put(k, v);
                 Ok(())
             }
         }
