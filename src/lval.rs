@@ -16,18 +16,6 @@ pub enum LvalFun {
     Lambda(Box<Lenv>, Box<Lval>, Box<Lval>), // (environment, formals, body), both should be Qexpr
 }
 
-impl LvalFun {
-    pub fn lambda_tuple(&self) -> Result<(Box<Lenv>, Box<Lval>, Box<Lval>)> {
-        match self {
-            LvalFun::Lambda(e, f, b) => Ok((*e, *f, *b)),
-            LvalFun::Builtin(_) => Err(BlisprError::WrongType(
-                "lambda".to_string(),
-                format!("{:?}", self),
-            )),
-        }
-    }
-}
-
 // The main type - all possible Blispr values
 #[derive(Debug, Clone, PartialEq)]
 pub enum Lval {

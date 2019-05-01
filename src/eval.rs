@@ -411,8 +411,12 @@ pub fn lval_call(f: Box<Lval>, mut e: Box<Lval>) -> BlisprResult {
         Lval::Fun(func) => {
             match func {
                 // If it's a builtin, just call the function pointer
-                LvalFun::Builtin(fp) => return fp(e),
+                LvalFun::Builtin(fp) => fp(e),
                 LvalFun::Lambda(mut env, mut formals, body) => {
+                    debug!(
+                        "Executing lambda.  Formals: {:?}, body: {:?}",
+                        formals, body
+                    );
                     // If it's a Lambda, bind arguments to env
                     // first grab the argument and body
                     let given = e.len()?;
@@ -433,52 +437,33 @@ pub fn lval_call(f: Box<Lval>, mut e: Box<Lval>) -> BlisprResult {
                         // bind a copy to the function's environment
                         env.put(sym.as_string()?, val);
                     }
+                    // if all formals have been bound
+                    if formals.len()? == 0 {
+                        // set environment parent to evaluation environment
+                        // TODO is this fucked?  Do I need to be passing it in?
+                        // The book is passing the env around as an arg
+                        // Im worried I'll need to do that so that each lval_*() fn has the proper env
+                        // This worked fine for global, not sure it will recur
+                        env.parent = Some(Arc::clone(&ENV));
+
+                        // Evaluate and return
+                        let mut ret = lval_sexpr();
+                        lval_add(&mut ret, body)?;
+                        debug!("Evaluating fully applied lambda");
+                        builtin_eval(ret)
+                    } else {
+                        // Otherwise return partially evaluated function
+                        // build a new lval for it
+                        debug!("Returning partially applied lambda");
+                        Ok(lval_lambda(formals, body))
+                    }
                 }
             }
         }
-        _ => {
-            return Err(BlisprError::WrongType(
-                "Function".to_string(),
-                format!("{:?}", f),
-            ))
-        }
-    }
-    // if all formals have been bound
-    let mut env;
-    let mut formals;
-    let mut body;
-
-    match *f {
-        Lval::Fun(f) => {
-            let triple = f.lambda_tuple()?;
-            env = triple.0;
-            formals = triple.1;
-            body = triple.2;
-        }
-        _ => {
-            return Err(BlisprError::WrongType(
-                "lambda".to_string(),
-                format!("{:?}", f),
-            ))
-        }
-    }
-
-    if formals.len()? == 0 {
-        // set environment parent to evaluation environment
-        // TODO is this fucked?  Do I need to be passing it in?
-        // The book is passing the env around as an arg
-        // Im worried I'll need to do that
-        // This worked fine for global, not sure it will recur
-        env.parent = Some(Arc::clone(&ENV));
-
-        // Evaluate and return
-        let mut ret = lval_sexpr();
-        lval_add(&mut ret, body)?;
-        lval_eval(ret)
-    } else {
-        // Otherwise return partially evaluated function
-        let ret = f.clone();
-        Ok(ret)
+        _ => Err(BlisprError::WrongType(
+            "Function".to_string(),
+            format!("{:?}", f),
+        )),
     }
 }
 
@@ -526,21 +511,9 @@ pub fn lval_eval(mut v: Box<Lval>) -> BlisprResult {
     } else {
         // Function call
         // We'll pop the first element off and attempt to call it on the rest of the elements
+        // lval_call will handle typechecking fp
         let fp = lval_pop(&mut v, 0)?;
         debug!("Calling function {:?} on {:?}", fp, v);
-        match *fp {
-            Lval::Fun(lf) => match lf {
-                // If we have a function, we need to dispatch it properly.
-                LvalFun::Builtin(f) => f(v),
-                _ => Err(BlisprError::WrongType(
-                    "builtin".to_string(),
-                    "lambda".to_string(),
-                )),
-            },
-            _ => {
-                println!("{}", *fp);
-                Err(BlisprError::UnknownFunction(format!("{}", fp)))
-            }
-        }
+        lval_call(fp, v)
     }
 }

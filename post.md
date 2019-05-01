@@ -257,7 +257,7 @@ expr = { num | symbol | sexpr | qexpr }
 blispr = { SOI ~ expr* ~ EOI }
 ```
 
-This is stored in its own file called `blispr.pest` alongside the source code.  Each line refines a parse rule.  I find this exceedingly readable, and easy to tweak.  Starting wrong the bottom, we see a unit of valid `blispr` consists of one or more `expr`s between the Start of Input (SOI) and End of Input (EOI).  An `expr` is any of the options given.  It can handle comments and whitespace for you.  I also enjoy how the grammar maintained completely separately from any Rust code.  It's easy to get this working with Rust:
+This is stored in its own file called `blispr.pest` alongside the source code.  Each line refines a parse rule.  I find this exceedingly readable, and easy to tweak.  Starting from the bottom, we see a unit of valid `blispr` consists of one or more `expr`s between the Start of Input (SOI) and End of Input (EOI).  An `expr` is any of the options given.  It can handle comments and whitespace for you.  I also enjoy how the grammar maintained completely separately from any Rust code.  It's easy to get this working with Rust:
 
 ```rust
 use pest::{iterators::Pair, Parser};
@@ -310,8 +310,6 @@ The result of `lval_read()` will be a single `Lval::Sexpr` containing the entire
 ## Environment
 
 Before we dig into how `lval_eval()` does its mojo lets pause and talk about the environment.  This is how symbols are able to correspond to functions and values - otherwise `"+"` would just be that character, but we need to to specifically correspond to the addition function.
-
-These babies are also the reason all my types have a required lifetime annotation, so I may be better served with a different implementation!  Each environment can optionally reference a parent, and functions carry environments, and `Lval`s can be functions, so the ownership of the reference in this environment goes all the way up.  That's the only place it's used, though!
 
 Jury's out on whether or not I have the right idea, here, but I also handled this differently from the book.  The original text has you create a `struct` that holds two arrays and a counter, one for keys and the other for values.  To perform a lookup, you find the index of that key and then return the value at that same index in the values.  This struct is built before the program enters the loop, and is passed in manually to every single function that gets called.
 
