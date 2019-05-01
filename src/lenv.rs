@@ -7,7 +7,10 @@ use crate::{
     lval::{lval_add, lval_builtin, lval_qexpr, lval_sym, LBuiltin, Lval},
 };
 use hashbrown::HashMap;
-use std::sync::{Arc, RwLock};
+use std::{
+    fmt,
+    sync::{Arc, RwLock},
+};
 
 lazy_static! {
     pub static ref ENV: LenvT = new_lenvt();
@@ -27,6 +30,8 @@ impl Lenv {
             lookup: HashMap::new(),
             parent,
         };
+
+        // Register builtins
 
         // Definiton
         ret.add_builtin("\\", builtin_lambda);
@@ -121,6 +126,17 @@ impl Lenv {
             // if it already existed, overwrite it with v
             *current = v;
         }
+    }
+}
+
+impl fmt::Display for Lenv {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let parent_str = if let Some(_) = self.parent {
+            "Child"
+        } else {
+            "Root"
+        };
+        write!(f, "{} vals in env | {}", self.lookup.len(), parent_str)
     }
 }
 

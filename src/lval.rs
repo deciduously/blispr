@@ -26,7 +26,7 @@ impl PartialEq for LvalFun {
             LvalFun::Lambda(e, f, b) => match other {
                 LvalFun::Lambda(other_e, other_f, other_b) => {
                     let self_env = e.read().unwrap();
-                    let other_env = e.read().unwrap();
+                    let other_env = other_e.read().unwrap();
                     *self_env == *other_env && f == other_f && b == other_b
                 }
                 _ => false,
@@ -73,7 +73,7 @@ impl fmt::Display for Lval {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Lval::Fun(lf) => match lf {
-                LvalFun::Builtin(_) => write!(f, "<builtin>"),
+                LvalFun::Builtin(fun) => write!(f, "<builtin: {:?}>", fun),
                 LvalFun::Lambda(_, formals, body) => write!(f, "(\\ {} {})", formals, body),
             },
             Lval::Num(n) => write!(f, "{}", n),

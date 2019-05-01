@@ -57,8 +57,6 @@ pub fn eval_str(s: &str) -> Result<()> {
     debug!("{}", parsed);
     let lval_ptr = lval_read(parsed)?;
     debug!("Parsed: {:?}", *lval_ptr);
-    let env_arc = Arc::clone(&ENV);
-    let r = env_arc.read()?;
-    println!("{}", lval_eval(Box::new(*r), lval_ptr)?);
+    println!("{}", lval_eval(Arc::clone(&ENV), lval_ptr)?);
     Ok(())
 }
