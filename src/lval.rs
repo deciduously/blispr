@@ -89,7 +89,7 @@ pub fn lval_builtin(f: LBuiltin) -> Box<Lval> {
 
 pub fn lval_lambda(formals: Box<Lval>, body: Box<Lval>) -> Box<Lval> {
     Box::new(Lval::Fun(LvalFun::Lambda(
-        Box::new(Lenv::new()),
+        Box::new(Lenv::new(None)),
         formals,
         body,
     )))

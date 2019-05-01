@@ -1,5 +1,11 @@
 use crate::lval::Lval;
-use std::{cmp::Ord, fmt::{self, Debug}, hash::Hash, marker::Copy, string::ToString};
+use std::{
+    cmp::Ord,
+    fmt::{self, Debug},
+    hash::Hash,
+    marker::Copy,
+    string::ToString,
+};
 
 #[derive(Debug)]
 pub enum BlisprError {

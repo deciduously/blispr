@@ -386,46 +386,55 @@ pub fn builtin_tail(mut v: Box<Lval>) -> BlisprResult {
     }
 }
 
+// Fully evaluate an `Lval`
 pub fn lval_eval(mut v: Box<Lval>) -> BlisprResult {
     let child_count;
     match *v {
         Lval::Sym(s) => {
+            // If it's a symbol, perform an environment lookup
             let r = ENV.read()?;
             let result = r.get(&s)?;
             debug!(
                 "lval_eval: Symbol lookup - retrieved {:?} from key {}",
                 result, s
             );
+            // The environment stores Lvals ready to go, we're done
             return Ok(result);
         }
         Lval::Sexpr(ref mut cells) => {
+            // If it's a Sexpr, we're going to continue past this match
+            // First, though, recursively evaluate each child with lval_eval()
             debug!("lval_eval: Sexpr, evaluating children");
-            // First, evaluate all the cells inside
             child_count = cells.len();
             for item in cells.iter_mut().take(child_count) {
                 *item = lval_eval(item.clone())?
             }
         }
-        // if it's not a sexpr, we're done
+        // if it's not a sexpr, we're done, return as is
         _ => {
             debug!("lval_eval: Non-sexpr: {:?}", v);
             return Ok(v);
         }
     }
 
+    // Anything other than an Lval will have already been returned
+    // Handle the different Sexpr cases
+
     if child_count == 0 {
-        // It was a sexpr, but it was empty
+        // It was a Sexpr, but it was empty.  We're done, return it
         Ok(v)
     } else if child_count == 1 {
         // Single expression
-        lval_pop(&mut v, 0)
+        debug!("Single-expression");
+        lval_eval(lval_pop(&mut v, 0)?)
     } else {
         // Function call
-        // Ensure the first element is a Symbol
+        // We'll pop the first element off and attempt to call it on the rest of the elements
         let fp = lval_pop(&mut v, 0)?;
         debug!("Calling function {:?} on {:?}", fp, v);
         match *fp {
             Lval::Fun(lf) => match lf {
+                // If we have a function, we need to dispatch it properly.
                 LvalFun::Builtin(f) => f(v),
                 _ => Err(BlisprError::WrongType(
                     "builtin".to_string(),

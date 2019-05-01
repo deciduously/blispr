@@ -18,7 +18,7 @@ $ cargo run
     Finished dev [unoptimized + debuginfo] target(s) in 0.92s
      Running `target/debug/blispr`
 Blispr v0.0.1
-Press Ctrl-C or Ctrl-D or use exit() to exit prompt
+Use exit(), Ctrl-C, or Ctrl-D to exit prompt
 blispr> def {x} 100
 ()
 blispr> def {y} 200
@@ -60,24 +60,29 @@ You can pass `-d` or `--debug` at runtime (`cargo run -- -d` or `blispr -d`) to 
     Finished dev [unoptimized + debuginfo] target(s) in 0.04s
      Running `target/debug/blispr -d`
 Blispr v0.0.1
-Press Ctrl-C or Ctrl-D or use exit() to exit prompt
+Use exit(), Ctrl-C, or Ctrl-D to exit prompt
  DEBUG blispr::parse > Debug mode enabled
-blispr> (eval (head {^ + - + - * / /* its homoiconic! */})) 2 32
- DEBUG blispr::parse > blispr(0, 56, [expr(0, 51, [sexpr(0, 51, [expr(1, 5, [symbol(1, 5)]), expr(6, 50, [sexpr(6, 50, [expr(7, 11, [symbol(7, 11)]), expr(12, 49, [qexpr(12, 49, [expr(13, 14, [symbol(13, 14)]), expr(15, 16, [symbol(15, 16)]), expr(17, 18, [symbol(17, 18)]), expr(19, 20, [symbol(19, 20)]), expr(21, 22, [symbol(21, 22)]), expr(23, 24, [symbol(23, 24)]), expr(25, 26, [symbol(25, 26)])])])])])])]), expr(52, 53, [num(52, 53)]), expr(54, 56, [num(54, 56)]), EOI(56, 56)])
- DEBUG blispr::parse > Parsed: Sexpr([Sexpr([Sym("eval"), Sexpr([Sym("head"), Qexpr([Sym("^"), Sym("+"), Sym("-"), Sym("+"), Sym("-"), Sym("*"), Sym("/")])])]), Num(2), Num(32)])
+blispr> eval (list + 1 2)
+ DEBUG blispr::parse > blispr(0, 17, [expr(0, 4, [symbol(0, 4)]), expr(5, 17, [sexpr(5, 17, [expr(6, 10, [symbol(6, 10)]), expr(11, 12, [symbol(11, 12)]), expr(13, 14, [num(13, 14)]), expr(15, 16, [num(15, 16)])])]), EOI(17, 17)])
+ DEBUG blispr::parse > Parsed: Sexpr([Sym("eval"), Sexpr([Sym("list"), Sym("+"), Num(1), Num(2)])])
  DEBUG blispr::eval  > lval_eval: Sexpr, evaluating children
+ DEBUG blispr::eval  > lval_eval: Symbol lookup - retrieved Fun(Builtin(0x557f9bf8d700)) from key eval
  DEBUG blispr::eval  > lval_eval: Sexpr, evaluating children
- DEBUG blispr::eval  > lval_eval: Sexpr, evaluating children
- DEBUG blispr::eval  > lval_eval: Non-sexpr: Qexpr([Sym("^"), Sym("+"), Sym("-"), Sym("+"), Sym("-"), Sym("*"), Sym("/")])
- DEBUG blispr::eval  > Calling function Fun(0x55da8de1d040) on Sexpr([Qexpr([Sym("^"), Sym("+"), Sym("-"), Sym("+"), Sym("-"), Sym("*"), Sym("/")])])
- DEBUG blispr::eval  > builtin_head: Returning the first element of [Sym("^"), Sym("+"), Sym("-"), Sym("+"), Sym("-"), Sym("*"), Sym("/")]
- DEBUG blispr::eval  > Calling function Fun(0x55da8de1c4f0) on Sexpr([Sym("^")])
- DEBUG blispr::eval  > lval_eval: Sexpr, evaluating children
+ DEBUG blispr::eval  > lval_eval: Symbol lookup - retrieved Fun(Builtin(0x557f9bf90b90)) from key list
+ DEBUG blispr::eval  > lval_eval: Symbol lookup - retrieved Fun(Builtin(0x557f9bf8ae80)) from key +
+ DEBUG blispr::eval  > lval_eval: Non-sexpr: Num(1)
  DEBUG blispr::eval  > lval_eval: Non-sexpr: Num(2)
- DEBUG blispr::eval  > lval_eval: Non-sexpr: Num(32)
- DEBUG blispr::eval  > Calling function Fun(0x55da8de19d60) on Sexpr([Num(2), Num(32)])
- DEBUG blispr::eval  > builtin_op: Raise Num(2) to the Num(32) power
-4294967296
+ DEBUG blispr::eval  > Calling function Fun(Builtin(0x557f9bf90b90)) on Sexpr([Fun(Builtin(0x557f9bf8ae80)), Num(1), Num(2)])
+ DEBUG blispr::eval  > builtin_list: Building list from [Fun(Builtin(0x557f9bf8ae80)), Num(1), Num(2)]
+ DEBUG blispr::eval  > Calling function Fun(Builtin(0x557f9bf8d700)) on Sexpr([Qexpr([Fun(Builtin(0x557f9bf8ae80)), Num(1), Num(2)])])
+ DEBUG blispr::eval  > builtin_eval: Sexpr([Fun(Builtin(0x557f9bf8ae80)), Num(1), Num(2)])
+ DEBUG blispr::eval  > lval_eval: Sexpr, evaluating children
+ DEBUG blispr::eval  > lval_eval: Non-sexpr: Fun(Builtin(0x557f9bf8ae80))
+ DEBUG blispr::eval  > lval_eval: Non-sexpr: Num(1)
+ DEBUG blispr::eval  > lval_eval: Non-sexpr: Num(2)
+ DEBUG blispr::eval  > Calling function Fun(Builtin(0x557f9bf8ae80)) on Sexpr([Num(1), Num(2)])
+ DEBUG blispr::eval  > builtin_op: Add Num(1) and Num(2)
+3
 ```
 
 ## Currently implemented

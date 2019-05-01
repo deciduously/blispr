@@ -35,7 +35,7 @@ struct Opt {
 
 pub fn repl() -> Result<()> {
     println!("Blispr v0.0.1");
-    println!("Press Ctrl-C or Ctrl-D or use exit() to exit prompt");
+    println!("Use exit(), Ctrl-C, or Ctrl-D to exit prompt");
     debug!("Debug mode enabled");
 
     let mut rl = Editor::<()>::new();

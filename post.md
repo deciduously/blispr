@@ -1,8 +1,8 @@
 # Rust Your Own Lisp
 
-It runs out translating things by [orangeduck](http://theorangeduck.com/page/about) into [Rust](https://www.rust-lang.org/) [is fun](https://dev.to/deciduously/build-you-a-markov-chain-in-rust-or-whatever-54mo).  His book [Build Your Own Lisp](http://www.buildyourownlisp.com/) is fantastic, both as an introduction to C and an introduction to writing an interpreter, so here we go again.
+It runs out translating things by [orangeduck](http://theorangeduck.com/page/about) into [Rust](https://www.rust-lang.org/) is [fun](https://dev.to/deciduously/build-you-a-markov-chain-in-rust-or-whatever-54mo).  His book [Build Your Own Lisp](http://www.buildyourownlisp.com/) is fantastic, both as an introduction to C and an introduction to writing an interpreter, so here we go again!
 
-This post is not intended to be a replacement for that text, by a long shot - go read the book.  It's excellent.  In translating to Rust, though, there are a few necessary differences worth noting.  This post does not include the code in its entirety but rather examples of each concept.  The full implementation can be found in [this repo](https://github.com/deciduously/blispr).
+This post is not intended to be a replacement for that text, by a long shot - go read the book.  It's excellent.  In translating to Rust, though, there are a few necessary differences worth noting.  This post does not include the code in its entirety but rather examples of each concept, and may be useful for anyone attempting a similar project or translation of their own in Rust.  I've also removed all debug logging for clarity.  The full implementation can be found in [this repo](https://github.com/deciduously/blispr).
 
 ## The Task
 
@@ -39,6 +39,63 @@ As part of the evaluation of an S-Expression, we'll look for a function correspo
 In addition to arithmetic operators, we'll add builtin functions to the environment to manipulate lists and define your own functions - you know, do programming!
 
 For better or worse (probably worse), I've called this implementation `blispr`.
+
+## Rustyline
+
+First thing's first, we've got to collect us some strings.  I highly recommend [`rustyline`](https://github.com/kkawakam/rustyline), a pure-Rust `readline` implementation.  This is all you have to do:
+
+```rust
+pub fn repl() -> Result<()> {
+    println!("Blispr v0.0.1");
+    println!("Use exit(), Ctrl-C, or Ctrl-D to exit prompt");
+
+    let mut rl = Editor::<()>::new();
+    if rl.load_history("./.blispr-history.txt").is_err() {
+        println!("No history found.");
+    }
+
+    loop {
+        let input = rl.readline("blispr> ");
+
+        match input {
+            Ok(line) => {
+                rl.add_history_entry(line.as_ref());
+                if let Err(e) = eval_str(&line) {
+                    eprintln!("{}", e);
+                }
+            }
+            Err(ReadlineError::Interrupted) => {
+                break;
+            }
+            Err(ReadlineError::Eof) => {
+                break;
+            }
+            Err(err) => {
+                break;
+            }
+        }
+    }
+    rl.save_history("./.blispr-history.txt")?;
+    Ok(())
+}
+```
+
+One thing to note is that I'm not propagating the error that `eval_str` might throw up to the caller here with `?` - I don't want evaluation errors to crash the repl!  Anything that can happen inside `eval_str()` I just want to inform the user about with `eprintln!()` and loop again.
+
+The next step is hinted at in the `Ok()` arm of the `match` - the meat of the work is happening in `eval_str()`:
+
+```rust
+pub fn eval_str(s: &str) -> Result<()> {
+    let parsed = BlisprParser::parse(Rule::blispr, s)?.next().unwrap();
+    let lval_ptr = lval_read(parsed)?;
+    println!("{}", lval_eval(lval_ptr)?);
+    Ok(())
+}
+```
+
+This function does four things.  The first line stores the parsed AST.  This tags our input string with semantic grammatical tags that we'll define below.  The next line reads that AST into a a type called an `Lval`, which represents the whole program as a lisp value that can be evaluated recursively.  Finally, we print out the result of .  Any errors that happened along the way were caught with the `?` operator - below we'll see what that `Result<T>` alias represents.
+
+
 
 ## Lval
 
@@ -244,13 +301,6 @@ fn lval_read(parsed: Pair<Rule>) -> BlisprResult {
         _ => unreachable!(), // COMMENT/WHITESPACE etc
     }
 }
-
-pub fn eval_str(s: &str) -> Result<()> {
-    let parsed = BlisprParser::parse(Rule::blispr, s)?.next().unwrap();
-    let lval_ptr = lval_read(parsed)?;
-    println!("{}", lval_eval(lval_ptr)?);
-    Ok(())
-}
 ```
 
 At the bottom, `lval_eval` takes a string input.  We parse it into an AST using `BlisprParser::parse()`, which attempts to build the tree using the grammar we provided.  One AST will always correspond to one `Lval`.  We pass the parsed AST into `lval_read`, which will recursively build it for us.  This function looks at the top-level rule and takes an appropriate action.  The top-level rule, `blispr`, is treated as an S-expression, and for an S-expression we allocate a new `Lval` with `lval_sexpr()`. Then every child in the AST is added as a child to this containing `Lval`, passing through `lval_read()` itself to turn it into the correct `Lval`.  The rule for `qexpr` is similar, and the other rules just create the corresponding `Lval` from the type given.  The one weird one is `Rule::expr` - this is a sort of meta-rule that matches any of the valid expression types, so it's not its own lval, just wrapping one of a more specific type.  We just use `next()` to pass the actual rule found back into `lval_read()`.
@@ -261,6 +311,8 @@ The result of `lval_read()` will be a single `Lval::Sexpr` containing the entire
 
 Before we dig into how `lval_eval()` does its mojo lets pause and talk about the environment.  This is how symbols are able to correspond to functions and values - otherwise `"+"` would just be that character, but we need to to specifically correspond to the addition function.
 
+These babies are also the reason all my types have a required lifetime annotation, so I may be better served with a different implementation!  Each environment can optionally reference a parent, and functions carry environments, and `Lval`s can be functions, so the ownership of the reference in this environment goes all the way up.  That's the only place it's used, though!
+
 Jury's out on whether or not I have the right idea, here, but I also handled this differently from the book.  The original text has you create a `struct` that holds two arrays and a counter, one for keys and the other for values.  To perform a lookup, you find the index of that key and then return the value at that same index in the values.  This struct is built before the program enters the loop, and is passed in manually to every single function that gets called.
 
 Instead, I decided to leverage the [`lazy_static`](https://github.com/rust-lang-nursery/lazy-static.rs) crate.  This allows you to define `static` values that require runtime initialization like heap allocation.
@@ -269,28 +321,41 @@ I've also opted for a [`HashMap`](https://doc.rust-lang.org/std/collections/stru
 
 ```rust
 lazy_static! {
-    pub static ref ENV: LenvT = Arc::new(RwLock::new(Lenv::new()));
+    pub static ref ENV: LenvT<'static> = Arc::new(RwLock::new(Lenv::new(None)));
 }
 
 pub type LenvT = Arc<RwLock<Lenv>>;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct Lenv {
     lookup: HashMap<String, Box<Lval>>,
+    parent: Option<LenvT>,
 }
 ```
 
-The `Lenv` itself only holds the lookup table, but when we initialize it in the `lazy_static!` block it gets wrapped in an `Arc<RwLock<T>>`.  The `Arc` is a reference-counted type - it will get de-alocated when no futher references to it exist.  Cloning an `Arc` just returns a new pointer to the same data on the heap and increments this counter, and when the new clone goes out of scope the counter will auto-decrement.  Great.  The `RwLock` is a special type of mutex that allows either multiple concurrent readers or a single writer at a time, but not both.  At present this code doesn't take advantage of any parallel execution, but it's next om ylise and having the enviroment thus typed should make that process easier.
+The `Lenv` itself only holds the lookup table, but when we initialize it in the `lazy_static!` block it gets wrapped in an `Arc<RwLock<T>>`.  The `Arc` is a reference-counted type - it will get de-allocated when no further references to it exist.  Cloning an `Arc` just returns a new pointer to the same data on the heap and increments this counter, and when the new clone goes out of scope the counter will auto-decrement.  Great.  The `RwLock` is a special type of mutex that allows either multiple concurrent readers or a single writer at a time, but not both.  This makes it ideal for use as the `parent` pointer type.  To use it, we can just make a new clone without worrying taht we're needlessly copying the data, and the `Arc` will neatly destruct itself when appropriate.  At present this code doesn't take advantage of any parallel execution, but having the environment thus typed should make that process easier as well.
 
 I've got some helper methods for getting, setting, and enumerating the contents:
 
-```
+```rust
 impl Lenv {
     // ..
+
     pub fn get(&self, k: &str) -> BlisprResult {
         match self.lookup.get(k) {
             Some(v) => Ok(Box::new(*v.clone())),
-            None => Err(BlisprError::UnknownFunction(k.to_string())),
+            None => {
+                // if we didn't find it in self, check the parent
+                // this will recur all the way up to the global scope
+                match &self.parent {
+                    None => Err(BlisprError::UnknownFunction(k.to_string())),
+                    Some(p_env) => {
+                        let arc = Arc::clone(&p_env);
+                        let r = arc.read()?;
+                        r.get(k)
+                    }
+                }
+            }
         }
     }
 
@@ -310,22 +375,46 @@ impl Lenv {
         }
     }
 }
-
-Getting a value from the enviroment will return a brand new `Lval` with a copy of what's stored, and printing out the contents will also return a ready-made `Qexpr` lal containg `Symbol`s corresponding to each entry.  We'll come back to initialization after talking a bit about evaluation.
-
 ```
+
+I did have to manually implement `PartialEq` for these ones and unwrap the parents myself:
+
+```rust
+impl PartialEq for Lenv {
+    fn eq(&self, other: &Lenv) -> bool {
+        let parent_lookup = match &self.parent {
+            Some(arc) => arc.read().unwrap(),
+            _ => return true,
+        };
+        let other_parent_lookup = match &other.parent {
+            Some(arc) => arc.read().unwrap(),
+            _ => return true,
+        };
+        self.lookup == other.lookup && *parent_lookup == *other_parent_lookup
+    }
+}
+```
+
+Getting a value from the environment will return a brand new `Lval` with a copy of what's stored, and printing out the contents will also return a ready-made `Qexpr` lval containing `Symbol`s corresponding to each entry.  We'll come back to initialization after talking a bit about evaluation.
+
+Environments optionally hold a parent environment, and if the lookup fails in this one it will attempt the parent environment.
 
 ## Eval
 
-The `lval_eval()` called in `eval_str()` is where the real crunching happens.  This will take an `Lval` and evaluate it as fully as it can.  Most types of `Lval` are already evaluated fully - but any `S-Expression` found will need to be evaluated, and any `Symbol` gets looked up in the environment.
+The `lval_eval()` called in `eval_str()` is where the real crunching happens.  This will take an `Lval` and recursively evaluate it to a final `Lval`.  Most types of `Lval` are already evaluated fully - but any `S-Expression` found will need to be evaluated, and any `Symbol` gets looked up in the environment.
 
 Before looking at the Rust, let's break it down in English:
 
-1. Check the type of Lval.
+1. Check the type of Lval:
+
     a. Fun | Num | Qexpr - we're done - return lval as is.
-    b. Symbol - Do an environment lookup - e.g., for `Sym("x")`, see if we have a value stored at name `"x"`.  Return result of lookup.
-    c. Sexpr - Evaluate the S-Expression
-2. If we made it to this step, we're working with an S-Expression.  Everything else has already returned. Before going further, fully evaluate all children with `lval_eval()`
+
+    b. Symbol - Do an environment lookup with `Lenv::get()` - e.g., for `Sym("+")`, see if we have a function pointer stored at name `"+"`.  Return result of lookup, which will already be an `Lval`.
+
+    c. Sexpr - Evaluate the S-Expression.
+
+2. If we made it to this step, we're working with an S-Expression.  Everything else has already returned. Before going further, fully evaluate all children with `lval_eval()`.
+
 3. 
 
 Here's the whole thing:
