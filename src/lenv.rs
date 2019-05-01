@@ -10,7 +10,7 @@ use hashbrown::HashMap;
 use std::sync::{Arc, RwLock};
 
 lazy_static! {
-    pub static ref ENV: LenvT = Arc::new(RwLock::new(Lenv::new(None)));
+    pub static ref ENV: LenvT = new_lenvt();
 }
 
 pub type LenvT = Arc<RwLock<Lenv>>;
@@ -136,4 +136,8 @@ impl PartialEq for Lenv {
         };
         self.lookup == other.lookup && *parent_lookup == *other_parent_lookup
     }
+}
+
+pub fn new_lenvt() -> LenvT {
+    Arc::new(RwLock::new(Lenv::new(None)))
 }

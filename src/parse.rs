@@ -1,9 +1,11 @@
 use crate::{
     error::{BlisprResult, Result},
     eval::lval_eval,
+    lenv::ENV,
     lval::{lval_add, lval_num, lval_qexpr, lval_sexpr, lval_sym},
 };
 use pest::{iterators::Pair, Parser};
+use std::sync::Arc;
 
 #[cfg(debug_assertions)]
 const _GRAMMAR: &str = include_str!("blispr.pest");
@@ -55,6 +57,8 @@ pub fn eval_str(s: &str) -> Result<()> {
     debug!("{}", parsed);
     let lval_ptr = lval_read(parsed)?;
     debug!("Parsed: {:?}", *lval_ptr);
-    println!("{}", lval_eval(lval_ptr)?);
+    let env_arc = Arc::clone(&ENV);
+    let r = env_arc.read()?;
+    println!("{}", lval_eval(Box::new(*r), lval_ptr)?);
     Ok(())
 }
