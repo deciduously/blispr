@@ -31,7 +31,7 @@ struct Opt {
     input: Option<PathBuf>,
 }
 
-pub fn repl<'a>(e: Lenv<'a>) -> Result<()> {
+pub fn repl(e: &mut Lenv) -> Result<()> {
     println!("Blispr v0.0.1");
     println!("Use exit(), Ctrl-C, or Ctrl-D to exit prompt");
     debug!("Debug mode enabled");
@@ -49,7 +49,7 @@ pub fn repl<'a>(e: Lenv<'a>) -> Result<()> {
                 rl.add_history_entry(line.as_ref());
                 // if eval_str is an error, we want to catch it here, inside the loop, but still show the next prompt
                 // just using ? would bubble it up to main()
-                if let Err(err) = eval_str(&mut e, &line) {
+                if let Err(err) = eval_str(e, &line) {
                     eprintln!("{}", err);
                 }
             }
@@ -78,7 +78,7 @@ fn run(opt: Opt) -> Result<()> {
     }
 
     pretty_env_logger::init();
-    let mut global_env = Lenv::new(None); // None indicates no parent, i.e. root environment
+    let global_env = &mut Lenv::new(None); // None indicates no parent, i.e. root environment
 
     if let Some(f) = opt.input {
         // if input file passed, eval its contents
@@ -86,7 +86,7 @@ fn run(opt: Opt) -> Result<()> {
         let mut bfr = BufReader::new(file);
         let mut program = String::new();
         bfr.read_to_string(&mut program)?;
-        eval_str(&mut global_env, &program)?
+        eval_str(global_env, &program)?
     } else {
         repl(global_env)?
     }
