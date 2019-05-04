@@ -31,7 +31,7 @@ struct Opt {
     input: Option<PathBuf>,
 }
 
-pub fn repl(e: &mut Lenv) -> Result<()> {
+pub fn repl<'a>(e: &'a mut Lenv<'a>) -> Result<()> {
     println!("Blispr v0.0.1");
     println!("Use exit(), Ctrl-C, or Ctrl-D to exit prompt");
     debug!("Debug mode enabled");

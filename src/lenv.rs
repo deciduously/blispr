@@ -16,7 +16,7 @@ pub struct Lenv<'a> {
 }
 
 impl<'a> Lenv<'a> {
-    pub fn new(parent: Option<&mut Lenv>) -> Self {
+    pub fn new(parent: Option<&'a mut Lenv<'a>>) -> Self {
         let mut ret = Self {
             lookup: HashMap::new(),
             parent,
@@ -41,7 +41,7 @@ impl<'a> Lenv<'a> {
 
         // Utility
         ret.add_builtin("exit", builtin_exit);
-        ret.add_builtin("printenv", builtin_printenv);
+        //ret.add_builtin("printenv", builtin_printenv); // TODO YOU BROKE THIS
 
         // Arithmetic
         ret.add_builtin("+", builtin_add);

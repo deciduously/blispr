@@ -1,6 +1,6 @@
 use crate::{
     error::{BlisprError, BlisprResult},
-    lenv::{LenvT, ENV},
+    lenv::Lenv,
     lval::{
         lval_add, lval_join, lval_lambda, lval_num, lval_pop, lval_qexpr, lval_sexpr, Lval, LvalFun,
     },
@@ -110,35 +110,35 @@ fn builtin_op(mut v: Box<Lval>, func: &str) -> BlisprResult {
 }
 
 // Operator aliases, function pointers will be stored in env
-pub fn builtin_add(_e: LenvT, a: Box<Lval>) -> BlisprResult {
+pub fn builtin_add(a: Box<Lval>) -> BlisprResult {
     builtin_op(a, "+")
 }
 
-pub fn builtin_sub(_e: LenvT, a: Box<Lval>) -> BlisprResult {
+pub fn builtin_sub(a: Box<Lval>) -> BlisprResult {
     builtin_op(a, "-")
 }
 
-pub fn builtin_mul(_e: LenvT, a: Box<Lval>) -> BlisprResult {
+pub fn builtin_mul(a: Box<Lval>) -> BlisprResult {
     builtin_op(a, "*")
 }
 
-pub fn builtin_div(_e: LenvT, a: Box<Lval>) -> BlisprResult {
+pub fn builtin_div(a: Box<Lval>) -> BlisprResult {
     builtin_op(a, "/")
 }
 
-pub fn builtin_pow(_e: LenvT, a: Box<Lval>) -> BlisprResult {
+pub fn builtin_pow(a: Box<Lval>) -> BlisprResult {
     builtin_op(a, "^")
 }
 
-pub fn builtin_rem(_e: LenvT, a: Box<Lval>) -> BlisprResult {
+pub fn builtin_rem(a: Box<Lval>) -> BlisprResult {
     builtin_op(a, "%")
 }
 
-pub fn builtin_max(_e: LenvT, a: Box<Lval>) -> BlisprResult {
+pub fn builtin_max(a: Box<Lval>) -> BlisprResult {
     builtin_op(a, "max")
 }
 
-pub fn builtin_min(_e: LenvT, a: Box<Lval>) -> BlisprResult {
+pub fn builtin_min(a: Box<Lval>) -> BlisprResult {
     builtin_op(a, "min")
 }
 
@@ -184,16 +184,16 @@ fn builtin_var(mut a: Box<Lval>, func: &str) -> BlisprResult {
     }
 }
 
-pub fn builtin_def(_e: LenvT, v: Box<Lval>) -> BlisprResult {
+pub fn builtin_def(v: Box<Lval>) -> BlisprResult {
     builtin_var(v, "def")
 }
 
-pub fn builtin_put(_e: LenvT, v: Box<Lval>) -> BlisprResult {
+pub fn builtin_put(v: Box<Lval>) -> BlisprResult {
     builtin_var(v, "=")
 }
 
 // Attach a value to the front of a qexpr
-pub fn builtin_cons(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
+pub fn builtin_cons(mut v: Box<Lval>) -> BlisprResult {
     let child_count = v.len()?;
     if child_count != 2 {
         return Err(BlisprError::NumArguments(2, child_count));
@@ -217,7 +217,9 @@ pub fn builtin_cons(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
 }
 
 // Evaluate qexpr as a sexpr
-pub fn builtin_eval(e: LenvT, mut v: Box<Lval>) -> BlisprResult {
+// WHERE DOES ENV COME FROM HERE?
+// Maybe Option<&mut Lenv> in lval_eval() sig?
+pub fn builtin_eval(mut v: Box<Lval>) -> BlisprResult {
     let qexpr = lval_pop(&mut v, 0)?;
     match *qexpr {
         Lval::Qexpr(ref children) => {
@@ -238,14 +240,14 @@ pub fn builtin_eval(e: LenvT, mut v: Box<Lval>) -> BlisprResult {
 }
 
 // terminate the program (or exit the prompt)
-pub fn builtin_exit(_e: LenvT, _v: Box<Lval>) -> BlisprResult {
+pub fn builtin_exit(_v: Box<Lval>) -> BlisprResult {
     // always succeeds
     println!("Goodbye!");
     ::std::process::exit(0);
 }
 
 // Return the first element of a qexpr
-pub fn builtin_head(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
+pub fn builtin_head(mut v: Box<Lval>) -> BlisprResult {
     let mut qexpr = lval_pop(&mut v, 0)?;
     match *qexpr {
         Lval::Qexpr(ref mut children) => {
@@ -266,7 +268,7 @@ pub fn builtin_head(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
 }
 
 // Return everything but the last element of a qexpr
-pub fn builtin_init(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
+pub fn builtin_init(mut v: Box<Lval>) -> BlisprResult {
     let qexpr = lval_pop(&mut v, 0)?;
     match *qexpr {
         Lval::Qexpr(ref children) => {
@@ -284,7 +286,7 @@ pub fn builtin_init(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
 }
 
 // Join the children into one qexpr
-pub fn builtin_join(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
+pub fn builtin_join(mut v: Box<Lval>) -> BlisprResult {
     let mut ret = lval_qexpr();
     for _ in 0..v.len()? {
         let next = lval_pop(&mut v, 0)?;
@@ -304,7 +306,7 @@ pub fn builtin_join(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
 }
 
 //builtin_lambda returns a lambda lval from two lists of symbols
-pub fn builtin_lambda(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
+pub fn builtin_lambda(mut v: Box<Lval>) -> BlisprResult {
     // ensure there's only two arguments
     let child_count = v.len()?;
     if child_count != 2 {
@@ -341,7 +343,7 @@ pub fn builtin_lambda(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
 }
 
 // make sexpr into a qexpr
-pub fn builtin_list(_e: LenvT, v: Box<Lval>) -> BlisprResult {
+pub fn builtin_list(v: Box<Lval>) -> BlisprResult {
     match *v {
         Lval::Sexpr(ref children) => {
             debug!("builtin_list: Building list from {:?}", children);
@@ -356,7 +358,7 @@ pub fn builtin_list(_e: LenvT, v: Box<Lval>) -> BlisprResult {
     }
 }
 
-pub fn builtin_len(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
+pub fn builtin_len(mut v: Box<Lval>) -> BlisprResult {
     let child_count = v.len()?;
     match child_count {
         1 => {
@@ -377,12 +379,13 @@ pub fn builtin_len(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
 }
 
 // Print all the named variables in the environment
-pub fn builtin_printenv(e: LenvT, _v: Box<Lval>) -> BlisprResult {
-    // we don't use the input
-    lval_eval(Arc::clone(&e), e.read()?.list_all()?)
-}
+// HOW DOES THIS WORK?!
+//pub fn builtin_printenv(e: LenvT, _v: Box<Lval>) -> BlisprResult {
+// we don't use the input
+//    lval_eval(Arc::clone(&e), e.read()?.list_all()?)
+//}
 
-pub fn builtin_tail(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
+pub fn builtin_tail(mut v: Box<Lval>) -> BlisprResult {
     let mut qexpr = lval_pop(&mut v, 0)?;
     debug!("Returning tail of {}", qexpr);
     match *qexpr {
@@ -405,18 +408,19 @@ pub fn builtin_tail(_e: LenvT, mut v: Box<Lval>) -> BlisprResult {
 
 // Call a Lval::Fun(f) on an argument list
 // This will handle both builtins and lambdas
-pub fn lval_call(e: LenvT, f: Box<Lval>, mut args: Box<Lval>) -> BlisprResult {
+pub fn lval_call<'a>(e: &'a mut Lenv<'a>, f: Box<Lval>, mut args: Box<Lval>) -> BlisprResult {
     match *f {
         Lval::Fun(func) => {
             match func {
                 // If it's a builtin, just apply that function pointer
-                LvalFun::Builtin(fp) => fp(e, args),
-                LvalFun::Lambda(env, mut formals, body) => {
+                LvalFun::Builtin(fp) => fp(args),
+                LvalFun::Lambda(mut formals, body) => {
                     debug!(
                         "Executing lambda.  Formals: {:?}, body: {:?}",
                         formals, body
                     );
-                    // If it's a Lambda, bind arguments to env
+                    // If it's a Lambda, bind arguments to a new local environment
+                    let mut local_env = Lenv::new(Some(e));
                     // first grab the argument and body
                     let given = args.len()?;
                     let total = formals.len()?;
@@ -435,22 +439,21 @@ pub fn lval_call(e: LenvT, f: Box<Lval>, mut args: Box<Lval>) -> BlisprResult {
 
                         // bind a copy to the function's environment
                         debug!("lval_call: adding {},{} to local fn environment", sym, val);
-                        env.write()?.put(sym.as_string()?, val);
+                        local_env.put(sym.as_string()?, val);
                     }
                     // if all formals have been bound
                     if formals.len()? == 0 {
-                        // set environment parent to evaluation environment
-                        env.write()?.parent = Some(Arc::clone(&e));
-
                         // Evaluate and return
                         let mut ret = lval_sexpr();
                         lval_add(&mut ret, body)?;
                         debug!("lval_call: evaluating fully applied lambda {:?}", ret);
                         // evaluate with the environment of the function, which now has th env this was called with as a parent.
-                        builtin_eval(env, ret)
+                        // I HAD THIS AS BUILTIN_EVAL BEFORE but that doesnt take an Env anymore
+                        lval_eval(&mut local_env, ret)
                     } else {
                         // Otherwise return partially evaluated function
                         // build a new lval for it
+                        // TODO this doesn't carry a local environment!
                         debug!("Returning partially applied lambda");
                         Ok(lval_lambda(formals, body))
                     }
@@ -465,12 +468,12 @@ pub fn lval_call(e: LenvT, f: Box<Lval>, mut args: Box<Lval>) -> BlisprResult {
 }
 
 // Fully evaluate an `Lval`
-pub fn lval_eval(e: LenvT, mut v: Box<Lval>) -> BlisprResult {
+pub fn lval_eval<'a>(e: &'a mut Lenv<'a>, mut v: Box<Lval>) -> BlisprResult {
     let child_count;
     match *v {
         Lval::Sym(s) => {
             // If it's a symbol, perform an environment lookup
-            let result = e.read()?.get(&s)?;
+            let result = e.get(&s)?;
             debug!(
                 "lval_eval: Symbol lookup - retrieved {} from key {}",
                 result, s
@@ -484,7 +487,7 @@ pub fn lval_eval(e: LenvT, mut v: Box<Lval>) -> BlisprResult {
             debug!("lval_eval: Sexpr, evaluating children");
             child_count = cells.len();
             for item in cells.iter_mut().take(child_count) {
-                *item = lval_eval(Arc::clone(&e), item.clone())?
+                *item = lval_eval(e, item.clone())?
             }
         }
         // if it's not a sexpr, we're done, return as is
