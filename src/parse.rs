@@ -30,7 +30,7 @@ fn lval_read(parsed: Pair<Rule>) -> BlisprResult {
                 if is_bracket_or_eoi(&child) {
                     continue;
                 }
-                lval_add(&mut ret, lval_read(child)?)?;
+                lval_add(&mut ret, &*lval_read(child)?)?;
             }
             Ok(ret)
         }
@@ -41,7 +41,7 @@ fn lval_read(parsed: Pair<Rule>) -> BlisprResult {
                 if is_bracket_or_eoi(&child) {
                     continue;
                 }
-                lval_add(&mut ret, lval_read(child)?)?;
+                lval_add(&mut ret, &*lval_read(child)?)?;
             }
             Ok(ret)
         }
@@ -54,8 +54,8 @@ fn lval_read(parsed: Pair<Rule>) -> BlisprResult {
 pub fn eval_str(e: &mut Lenv, s: &str) -> Result<()> {
     let parsed = BlisprParser::parse(Rule::blispr, s)?.next().unwrap();
     debug!("{}", parsed);
-    let lval_ptr = lval_read(parsed)?;
+    let mut lval_ptr = lval_read(parsed)?;
     debug!("Parsed: {:?}", *lval_ptr);
-    println!("{}", lval_eval(e, lval_ptr)?);
+    println!("{}", lval_eval(e, &mut *lval_ptr)?);
     Ok(())
 }

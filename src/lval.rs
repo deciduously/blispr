@@ -4,13 +4,13 @@ use std::fmt;
 // The recursive types hold their children in one of these bad boys
 // TODO Should this be a VecDeque or a LinkedList instead?
 type LvalChildren = Vec<Box<Lval>>;
-pub type LBuiltin = fn(Box<Lval>) -> BlisprResult;
+pub type LBuiltin = fn(&mut Lval) -> BlisprResult;
 
 // There are two types of function - builtin and lambda
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone)]
 pub enum LvalFun {
     Builtin(String, LBuiltin),    // (name, function pointer)
-    Lambda(Box<Lval>, Box<Lval>), // (environment(?), formals, body), both should be Qexpr
+    Lambda(Box<Lval>, Box<Lval>), // (environment(?), formals, body), both should be Qexpr // TODO these should both be Rc<T>
 }
 
 // The main type - all possible Blispr values
@@ -43,6 +43,30 @@ impl Lval {
         match *self {
             Lval::Sexpr(ref children) | Lval::Qexpr(ref children) => Ok(children.len()),
             _ => Err(BlisprError::NoChildren),
+        }
+    }
+}
+
+impl fmt::Debug for LvalFun {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            LvalFun::Builtin(name, _) => write!(f, "Builtin({})", name),
+            LvalFun::Lambda(formals, body) => write!(f, "Lambda({{{}}},{{{}}})", formals, body),
+        }
+    }
+}
+
+impl PartialEq for LvalFun {
+    fn eq(&self, other: &LvalFun) -> bool {
+        match self {
+            LvalFun::Builtin(name, _) => match other {
+                LvalFun::Builtin(other_name, _) => name == other_name,
+                _ => false,
+            },
+            LvalFun::Lambda(formals, body) => match other {
+                LvalFun::Lambda(other_f, other_b) => formals == other_f && body == other_b,
+                _ => false,
+            },
         }
     }
 }
@@ -107,10 +131,10 @@ pub fn lval_qexpr() -> Box<Lval> {
 // Manipulating children
 
 // Add lval x to lval::sexpr or lval::qexpr v
-pub fn lval_add(v: &mut Lval, x: Box<Lval>) -> Result<()> {
+pub fn lval_add(v: &mut Lval, x: &Lval) -> Result<()> {
     match *v {
         Lval::Sexpr(ref mut children) | Lval::Qexpr(ref mut children) => {
-            children.push(x);
+            children.push(Box::new(x.clone()));
         }
         _ => return Err(BlisprError::NoChildren),
     }
@@ -132,7 +156,7 @@ pub fn lval_pop(v: &mut Lval, i: usize) -> BlisprResult {
 // Add each cell in y to x
 pub fn lval_join(x: &mut Lval, mut y: Box<Lval>) -> Result<()> {
     while y.len()? > 0 {
-        lval_add(x, lval_pop(&mut y, 0)?)?;
+        lval_add(x, &*lval_pop(&mut y, 0)?)?;
     }
     Ok(())
 }

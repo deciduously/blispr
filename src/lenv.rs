@@ -89,7 +89,7 @@ impl<'a> Lenv<'a> {
     // retrieve a value from the env, local first then up through parents
     pub fn get(&self, k: &str) -> BlisprResult {
         match self.lookup.get(k) {
-            Some(v) => Ok(Box::new(*v.clone())),
+            Some(v) => Ok(v.clone()),
             None => {
                 // if we didn't find it in self, check the parent
                 // this will recur all the way up to the global scope
@@ -105,7 +105,7 @@ impl<'a> Lenv<'a> {
     pub fn list_all(&self) -> BlisprResult {
         let mut ret = lval_qexpr();
         for (k, v) in &self.lookup {
-            lval_add(&mut ret, lval_sym(&format!("{}:{}", k, v)))?;
+            lval_add(&mut ret, &lval_sym(&format!("{}:{}", k, v)))?;
         }
         Ok(ret)
     }
