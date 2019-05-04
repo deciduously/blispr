@@ -5,10 +5,7 @@ use crate::{
         lval_add, lval_join, lval_lambda, lval_num, lval_pop, lval_qexpr, lval_sexpr, Lval, LvalFun,
     },
 };
-use std::{
-    ops::{Add, Div, Mul, Rem, Sub},
-    sync::Arc,
-};
+use std::ops::{Add, Div, Mul, Rem, Sub};
 
 // macro to shorten code for applying a binary operation to two Lvals
 macro_rules! apply_binop {
@@ -49,32 +46,32 @@ fn builtin_op(mut v: Box<Lval>, func: &str) -> BlisprResult {
         child_count -= 1;
         match func {
             "+" | "add" => {
-                debug!("builtin_op: Add {:?} and {:?}", x, y);
+                debug!("builtin_op: Add {} and {}", x, y);
                 apply_binop!(add, x, y)
             }
             "-" | "sub" => {
-                debug!("builtin_op: Subtract {:?} and {:?}", x, y);
+                debug!("builtin_op: Subtract {} and {}", x, y);
                 apply_binop!(sub, x, y)
             }
             "*" | "mul" => {
-                debug!("builtin_op: Multiply {:?} and {:?}", x, y);
+                debug!("builtin_op: Multiply {} and {}", x, y);
                 apply_binop!(mul, x, y)
             }
             "/" | "div" => {
                 if y.as_num()? == 0 {
-                    debug!("builtin_op: Failed divide {:?} by {:?}", x, y);
+                    debug!("builtin_op: Failed divide {} by {}", x, y);
                     return Err(BlisprError::DivideByZero);
                 } else {
-                    debug!("builtin_op: Divide {:?} by {:?}", x, y);
+                    debug!("builtin_op: Divide {} by {}", x, y);
                     apply_binop!(div, x, y)
                 }
             }
             "%" | "rem" => {
-                debug!("builtin_op: {:?} % {:?}", x, y);
+                debug!("builtin_op: {} % {}", x, y);
                 apply_binop!(rem, x, y)
             }
             "^" | "pow" => {
-                debug!("builtin_op: Raise {:?} to the {:?} power", x, y);
+                debug!("builtin_op: Raise {} to the {} power", x, y);
                 let y_num = y.as_num()?;
                 let x_num = x.as_num()?;
                 let mut coll = 1;
@@ -84,7 +81,7 @@ fn builtin_op(mut v: Box<Lval>, func: &str) -> BlisprResult {
                 x = lval_num(coll);
             }
             "min" => {
-                debug!("builtin_op: Min {:?} and {:?}", x, y);
+                debug!("builtin_op: Min {} and {}", x, y);
                 let x_num = x.as_num()?;
                 let y_num = y.as_num()?;
                 if x_num < y_num {
@@ -94,7 +91,7 @@ fn builtin_op(mut v: Box<Lval>, func: &str) -> BlisprResult {
                 };
             }
             "max" => {
-                debug!("builtin_op: Max {:?} and {:?}", x, y);
+                debug!("builtin_op: Max {} and {}", x, y);
                 let x_num = x.as_num()?;
                 let y_num = y.as_num()?;
                 if x_num > y_num {
@@ -110,6 +107,7 @@ fn builtin_op(mut v: Box<Lval>, func: &str) -> BlisprResult {
 }
 
 // Operator aliases, function pointers will be stored in env
+// TODO macro??  create_builtin!(a, &str)
 pub fn builtin_add(a: Box<Lval>) -> BlisprResult {
     builtin_op(a, "+")
 }
@@ -142,10 +140,14 @@ pub fn builtin_min(a: Box<Lval>) -> BlisprResult {
     builtin_op(a, "min")
 }
 
+fn builtin_var_stub(_v: Box<Lval>) -> BlisprResult {
+    Ok(lval_sexpr())
+}
+
 // define a list of values
 // if "def" define in global env
 // if "=" define in local env
-fn builtin_var(mut a: Box<Lval>, func: &str) -> BlisprResult {
+fn builtin_var(e: &Lenv, mut a: Box<Lval>, func: &str) -> BlisprResult {
     let args = lval_pop(&mut a, 0)?;
     match *args {
         Lval::Qexpr(names) => {
@@ -160,16 +162,14 @@ fn builtin_var(mut a: Box<Lval>, func: &str) -> BlisprResult {
             if vals_len != names_len {
                 Err(BlisprError::NumArguments(names_len, vals_len))
             } else {
-                // grab write lock on ENV
-                let mut w = ENV.write()?;
                 for (k, v) in names.iter().zip(vals.iter()) {
                     let scope = if func == "def" { "global" } else { "local" };
-                    debug!("adding key, value pair {}, {} to {} env {}", k, v, scope, w);
+                    debug!("adding key, value pair {}, {} to {} env {}", k, v, scope, e);
                     let name = k.clone().as_string()?;
                     if scope == "local" {
-                        w.put(name, v.clone());
+                        e.put(name, v.clone());
                     } else {
-                        w.def(name, v.clone())?;
+                        e.def(name, v.clone())?;
                     }
                 }
                 Ok(lval_sexpr())
@@ -179,17 +179,25 @@ fn builtin_var(mut a: Box<Lval>, func: &str) -> BlisprResult {
         }
         _ => Err(BlisprError::WrongType(
             "qexpr".to_string(),
-            format!("{:?}", args),
+            format!("{}", args),
         )),
     }
 }
 
-pub fn builtin_def(v: Box<Lval>) -> BlisprResult {
-    builtin_var(v, "def")
+pub fn builtin_def_stub(_v: Box<Lval>) -> BlisprResult {
+    Ok(lval_sexpr())
 }
 
-pub fn builtin_put(v: Box<Lval>) -> BlisprResult {
-    builtin_var(v, "=")
+fn builtin_def(e: &Lenv, v: Box<Lval>) -> BlisprResult {
+    builtin_var(e, v, "def")
+}
+
+pub fn builtin_put_stub(_v: Box<Lval>) -> BlisprResult {
+    Ok(lval_sexpr())
+}
+
+fn builtin_put(e: &Lenv, v: Box<Lval>) -> BlisprResult {
+    builtin_var(e, v, "=")
 }
 
 // Attach a value to the front of a qexpr
@@ -211,15 +219,18 @@ pub fn builtin_cons(mut v: Box<Lval>) -> BlisprResult {
         }
         _ => Err(BlisprError::WrongType(
             "qexpr".to_string(),
-            format!("{:?}", v),
+            format!("{}", v),
         )),
     }
 }
 
+// correct call dispatched in lval_call
+pub fn builtin_eval_stub(_v: Box<Lval>) -> BlisprResult {
+    Ok(lval_sexpr())
+}
+
 // Evaluate qexpr as a sexpr
-// WHERE DOES ENV COME FROM HERE?
-// Maybe Option<&mut Lenv> in lval_eval() sig?
-pub fn builtin_eval(mut v: Box<Lval>) -> BlisprResult {
+pub fn builtin_eval<'a>(e: &'a Lenv<'a>, mut v: Box<Lval>) -> BlisprResult {
     let qexpr = lval_pop(&mut v, 0)?;
     match *qexpr {
         Lval::Qexpr(ref children) => {
@@ -228,7 +239,7 @@ pub fn builtin_eval(mut v: Box<Lval>) -> BlisprResult {
                 let cloned = Box::new(*c.clone());
                 lval_add(&mut new_sexpr, cloned)?;
             }
-            debug!("builtin_eval: {:?}", new_sexpr);
+            debug!("builtin_eval: {}", new_sexpr);
             lval_eval(e, new_sexpr)
         }
         _ => {
@@ -254,15 +265,12 @@ pub fn builtin_head(mut v: Box<Lval>) -> BlisprResult {
             if children.is_empty() {
                 return Err(BlisprError::EmptyList);
             }
-            debug!(
-                "builtin_head: Returning the first element of {:?}",
-                children
-            );
+            debug!("builtin_head: Returning the first element");
             Ok(children[0].clone())
         }
         _ => Err(BlisprError::WrongType(
             "qexpr".to_string(),
-            format!("{:?}", qexpr),
+            format!("{}", qexpr),
         )),
     }
 }
@@ -280,7 +288,7 @@ pub fn builtin_init(mut v: Box<Lval>) -> BlisprResult {
         }
         _ => Err(BlisprError::WrongType(
             "qexpr".to_string(),
-            format!("{:?}", qexpr),
+            format!("{}", qexpr),
         )),
     }
 }
@@ -297,7 +305,7 @@ pub fn builtin_join(mut v: Box<Lval>) -> BlisprResult {
             _ => {
                 return Err(BlisprError::WrongType(
                     "qexpr".to_string(),
-                    format!("{:?}", next),
+                    format!("{}", next),
                 ))
             }
         }
@@ -323,7 +331,7 @@ pub fn builtin_lambda(mut v: Box<Lval>) -> BlisprResult {
                 if cell.as_string().is_err() {
                     return Err(BlisprError::WrongType(
                         "Symbol".to_string(),
-                        format!("{:?}", cell),
+                        format!("{}", cell),
                     ));
                 }
             }
@@ -331,13 +339,13 @@ pub fn builtin_lambda(mut v: Box<Lval>) -> BlisprResult {
                 Lval::Qexpr(_) => Ok(lval_lambda(formals_ret, body)),
                 _ => Err(BlisprError::WrongType(
                     "Q-Expression".to_string(),
-                    format!("{:?}", body),
+                    format!("{}", body),
                 )),
             }
         }
         _ => Err(BlisprError::WrongType(
             "Q-Expression".to_string(),
-            format!("{:?}", formals),
+            format!("{}", formals),
         )),
     }
 }
@@ -346,7 +354,7 @@ pub fn builtin_lambda(mut v: Box<Lval>) -> BlisprResult {
 pub fn builtin_list(v: Box<Lval>) -> BlisprResult {
     match *v {
         Lval::Sexpr(ref children) => {
-            debug!("builtin_list: Building list from {:?}", children);
+            debug!("builtin_list: Building qexpr from arguments");
             let mut new_qexpr = lval_qexpr();
             for c in children {
                 let cloned = Box::new(*c.clone());
@@ -370,7 +378,7 @@ pub fn builtin_len(mut v: Box<Lval>) -> BlisprResult {
                 }
                 _ => Err(BlisprError::WrongType(
                     "qexpr".to_string(),
-                    format!("{:?}", qexpr),
+                    format!("{}", qexpr),
                 )),
             }
         }
@@ -378,12 +386,15 @@ pub fn builtin_len(mut v: Box<Lval>) -> BlisprResult {
     }
 }
 
+pub fn builtin_printenv_stub(_v: Box<Lval>) -> BlisprResult {
+    Ok(lval_sexpr())
+}
+
 // Print all the named variables in the environment
-// HOW DOES THIS WORK?!
-//pub fn builtin_printenv(e: LenvT, _v: Box<Lval>) -> BlisprResult {
-// we don't use the input
-//    lval_eval(Arc::clone(&e), e.read()?.list_all()?)
-//}
+pub fn builtin_printenv<'a>(e: &Lenv<'a>) -> BlisprResult {
+    // we don't use the input
+    lval_eval(e, e.list_all()?)
+}
 
 pub fn builtin_tail(mut v: Box<Lval>) -> BlisprResult {
     let mut qexpr = lval_pop(&mut v, 0)?;
@@ -401,24 +412,28 @@ pub fn builtin_tail(mut v: Box<Lval>) -> BlisprResult {
         }
         _ => Err(BlisprError::WrongType(
             "qexpr".to_string(),
-            format!("{:?}", qexpr),
+            format!("{}", qexpr),
         )),
     }
 }
 
 // Call a Lval::Fun(f) on an argument list
 // This will handle both builtins and lambdas
-pub fn lval_call<'a>(e: &'a mut Lenv<'a>, f: Box<Lval>, mut args: Box<Lval>) -> BlisprResult {
+pub fn lval_call<'a>(e: &'a Lenv<'a>, f: Box<Lval>, mut args: Box<Lval>) -> BlisprResult {
     match *f {
         Lval::Fun(func) => {
             match func {
-                // If it's a builtin, just apply that function pointer
-                LvalFun::Builtin(fp) => fp(args),
+                // if its one of the ones that need an environment, intercept and route to the properly typed fn
+                LvalFun::Builtin(name, fp) => match name.as_str() {
+                    "eval" => builtin_eval(e, args),
+                    "def" => builtin_def(e, args),
+                    "=" => builtin_put(e, args),
+                    "printenv" => builtin_printenv(e),
+                    // Otherwise, just apply the actual stored function pointer
+                    _ => fp(args),
+                },
                 LvalFun::Lambda(mut formals, body) => {
-                    debug!(
-                        "Executing lambda.  Formals: {:?}, body: {:?}",
-                        formals, body
-                    );
+                    debug!("Executing lambda.  Formals: {}, body: {}", formals, body);
                     // If it's a Lambda, bind arguments to a new local environment
                     let mut local_env = Lenv::new(Some(e));
                     // first grab the argument and body
@@ -446,7 +461,7 @@ pub fn lval_call<'a>(e: &'a mut Lenv<'a>, f: Box<Lval>, mut args: Box<Lval>) -> 
                         // Evaluate and return
                         let mut ret = lval_sexpr();
                         lval_add(&mut ret, body)?;
-                        debug!("lval_call: evaluating fully applied lambda {:?}", ret);
+                        debug!("lval_call: evaluating fully applied lambda {}", ret);
                         // evaluate with the environment of the function, which now has th env this was called with as a parent.
                         // I HAD THIS AS BUILTIN_EVAL BEFORE but that doesnt take an Env anymore
                         lval_eval(&mut local_env, ret)
@@ -462,13 +477,13 @@ pub fn lval_call<'a>(e: &'a mut Lenv<'a>, f: Box<Lval>, mut args: Box<Lval>) -> 
         }
         _ => Err(BlisprError::WrongType(
             "Function".to_string(),
-            format!("{:?}", f),
+            format!("{}", f),
         )),
     }
 }
 
 // Fully evaluate an `Lval`
-pub fn lval_eval<'a>(e: &'a mut Lenv<'a>, mut v: Box<Lval>) -> BlisprResult {
+pub fn lval_eval<'a>(e: &'a Lenv<'a>, mut v: Box<Lval>) -> BlisprResult {
     let child_count;
     match *v {
         Lval::Sym(s) => {
@@ -492,7 +507,7 @@ pub fn lval_eval<'a>(e: &'a mut Lenv<'a>, mut v: Box<Lval>) -> BlisprResult {
         }
         // if it's not a sexpr, we're done, return as is
         _ => {
-            debug!("lval_eval: Non-sexpr: {:?}", v);
+            debug!("lval_eval: Non-sexpr: {}", v);
             return Ok(v);
         }
     }

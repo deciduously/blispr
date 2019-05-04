@@ -120,7 +120,7 @@ This function does four things.  The first line stores the parse tree.  This tag
 
 ## Lval
 
-To represent Abstract Syntax Tree, I used a Rust `enum` called `Lval`:
+To represent the AST, I used a Rust `enum` called `Lval`:
 
 ```rust
 // LvalChildren is how the recursive types hold their children
@@ -495,3 +495,13 @@ pub fn lval_eval(mut v: Box<Lval>) -> BlisprResult {
     }
 }
 ```
+
+## Difficulties
+
+### Scoped Environments
+
+Arc<RwLock<T>>>, arenas, your first core dump.  The whole lifetime thing.  Then...`eval_builtin`.
+
+### `Debug` for `Lval`
+
+This is due to the `&mut Lenv` in the type of `LBuiltin`.

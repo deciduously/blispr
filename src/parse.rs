@@ -55,7 +55,7 @@ pub fn eval_str<'a>(e: &'a mut Lenv<'a>, s: &str) -> Result<()> {
     let parsed = BlisprParser::parse(Rule::blispr, s)?.next().unwrap();
     debug!("{}", parsed);
     let lval_ptr = lval_read(parsed)?;
-    debug!("Parsed: {:?}", *lval_ptr);
+    debug!("Parsed: {}", *lval_ptr);
     println!("{}", lval_eval(e, lval_ptr)?);
     Ok(())
 }

@@ -9,14 +9,14 @@ use crate::{
 use hashbrown::HashMap;
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Lenv<'a> {
     lookup: HashMap<String, Box<Lval>>,
-    pub parent: Option<&'a mut Lenv<'a>>,
+    pub parent: Option<&'a Lenv<'a>>,
 }
 
 impl<'a> Lenv<'a> {
-    pub fn new(parent: Option<&'a mut Lenv<'a>>) -> Self {
+    pub fn new(parent: Option<&'a Lenv<'a>>) -> Self {
         let mut ret = Self {
             lookup: HashMap::new(),
             parent,
@@ -25,56 +25,53 @@ impl<'a> Lenv<'a> {
         // Register builtins
 
         // Definiton
-        ret.add_builtin("\\", builtin_lambda);
-        ret.add_builtin("def", builtin_def);
-        ret.add_builtin("=", builtin_put);
+        ret = ret.add_builtin("\\", builtin_lambda);
+        ret = ret.add_builtin("def", builtin_def_stub);
+        ret = ret.add_builtin("=", builtin_put_stub);
 
         // List manipulation
-        ret.add_builtin("cons", builtin_cons);
-        ret.add_builtin("eval", builtin_eval);
-        ret.add_builtin("head", builtin_head);
-        ret.add_builtin("init", builtin_init);
-        ret.add_builtin("list", builtin_list);
-        ret.add_builtin("join", builtin_join);
-        ret.add_builtin("len", builtin_len);
-        ret.add_builtin("tail", builtin_tail);
+        ret = ret.add_builtin("cons", builtin_cons);
+        ret = ret.add_builtin("eval", builtin_eval_stub);
+        ret = ret.add_builtin("head", builtin_head);
+        ret = ret.add_builtin("init", builtin_init);
+        ret = ret.add_builtin("list", builtin_list);
+        ret = ret.add_builtin("join", builtin_join);
+        ret = ret.add_builtin("len", builtin_len);
+        ret = ret.add_builtin("tail", builtin_tail);
 
         // Utility
-        ret.add_builtin("exit", builtin_exit);
-        //ret.add_builtin("printenv", builtin_printenv); // TODO YOU BROKE THIS
+        ret = ret.add_builtin("exit", builtin_exit);
+        ret = ret.add_builtin("printenv", builtin_printenv_stub);
 
         // Arithmetic
-        ret.add_builtin("+", builtin_add);
-        ret.add_builtin("add", builtin_add);
-        ret.add_builtin("-", builtin_sub);
-        ret.add_builtin("sub", builtin_sub);
-        ret.add_builtin("*", builtin_mul);
-        ret.add_builtin("mul", builtin_mul);
-        ret.add_builtin("/", builtin_div);
-        ret.add_builtin("div", builtin_div);
-        ret.add_builtin("^", builtin_pow);
-        ret.add_builtin("pow", builtin_pow);
-        ret.add_builtin("%", builtin_rem);
-        ret.add_builtin("rem", builtin_rem);
-        ret.add_builtin("min", builtin_min);
-        ret.add_builtin("max", builtin_max);
+        ret = ret.add_builtin("+", builtin_add);
+        ret = ret.add_builtin("add", builtin_add);
+        ret = ret.add_builtin("-", builtin_sub);
+        ret = ret.add_builtin("sub", builtin_sub);
+        ret = ret.add_builtin("*", builtin_mul);
+        ret = ret.add_builtin("mul", builtin_mul);
+        ret = ret.add_builtin("/", builtin_div);
+        ret = ret.add_builtin("div", builtin_div);
+        ret = ret.add_builtin("^", builtin_pow);
+        ret = ret.add_builtin("pow", builtin_pow);
+        ret = ret.add_builtin("%", builtin_rem);
+        ret = ret.add_builtin("rem", builtin_rem);
+        ret = ret.add_builtin("min", builtin_min);
+        ret = ret.add_builtin("max", builtin_max);
 
         ret
     }
 
     // register a function pointer to the global scope
-    fn add_builtin(&mut self, name: &str, func: LBuiltin) {
-        self.put(name.to_string(), lval_builtin(func));
+    fn add_builtin(self, name: &str, func: LBuiltin) -> Self {
+        self.put(name.to_string(), lval_builtin(func, name))
     }
 
     // add a function to the global scope
-    pub fn def(&mut self, k: String, v: Box<Lval>) -> Result<()> {
+    pub fn def(&self, k: String, v: Box<Lval>) -> Result<()> {
         // iterate up through parents until we find the root
         match &self.parent {
-            Some(env) => {
-                env.def(k, v)?;
-                Ok(())
-            }
+            Some(env) => Ok(env.def(k, v)?),
             None => {
                 self.put(k, v);
                 Ok(())
@@ -107,12 +104,13 @@ impl<'a> Lenv<'a> {
     }
 
     // add a value to the local env
-    pub fn put(&mut self, k: String, v: Box<Lval>) {
+    pub fn put(mut self, k: String, v: Box<Lval>) -> Self {
         let current = self.lookup.entry(k).or_insert_with(|| v.clone());
         if *v != **current {
             // if it already existed, overwrite it with v
             *current = v;
         }
+        self
     }
 }
 
@@ -127,9 +125,9 @@ impl<'a> fmt::Display for Lenv<'a> {
     }
 }
 
-impl<'a> PartialEq for Lenv<'a> {
-    fn eq(&self, other: &Lenv) -> bool {
-        // Note - doesn't compare parents!
-        self.lookup == other.lookup
-    }
-}
+//impl PartialEq for Lenv {
+//    fn eq(&self, other: &Lenv) -> bool {
+//        // Note - doesn't compare parents!
+//        self.lookup == other.lookup
+//    }
+//}
