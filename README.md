@@ -150,7 +150,7 @@ blispr> list a b x y
 
 Partial application isn't working yet.
 
-```lisp
+```
 blispr> def {embiggen} (\ {x y} {^ (* x y) (+ x y)})
 ()
 blispr> embiggen 2 3

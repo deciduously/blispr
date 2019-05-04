@@ -1,8 +1,6 @@
 #[macro_use]
 extern crate pest_derive;
 #[macro_use]
-extern crate lazy_static;
-#[macro_use]
 extern crate log;
 
 mod error;
@@ -11,7 +9,7 @@ mod lenv;
 mod lval;
 mod parse;
 
-use crate::{error::Result, parse::eval_str};
+use crate::{error::Result, lenv::Lenv, parse::eval_str};
 use rustyline::{error::ReadlineError, Editor};
 use std::{
     env::set_var,
@@ -33,7 +31,7 @@ struct Opt {
     input: Option<PathBuf>,
 }
 
-pub fn repl() -> Result<()> {
+pub fn repl(e: &mut Lenv) -> Result<()> {
     println!("Blispr v0.0.1");
     println!("Use exit(), Ctrl-C, or Ctrl-D to exit prompt");
     debug!("Debug mode enabled");
@@ -51,7 +49,7 @@ pub fn repl() -> Result<()> {
                 rl.add_history_entry(line.as_ref());
                 // if eval_str is an error, we want to catch it here, inside the loop, but still show the next prompt
                 // just using ? would bubble it up to main()
-                if let Err(e) = eval_str(&line) {
+                if let Err(e) = eval_str(e, &line) {
                     eprintln!("{}", e);
                 }
             }
@@ -80,16 +78,17 @@ fn run(opt: Opt) -> Result<()> {
     }
 
     pretty_env_logger::init();
+    let global_env = Lenv::new(None); // None indicates no parent, i.e. root environment
 
     if let Some(f) = opt.input {
         // if input file passed, eval its contents
         let file = File::open(f)?;
         let bfr = BufReader::new(file);
         for line in bfr.lines() {
-            eval_str(&line?)?
+            eval_str(&mut global_env, &line?)?
         }
     } else {
-        repl()?
+        repl(&mut global_env)?
     }
     Ok(())
 }

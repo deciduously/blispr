@@ -7,25 +7,16 @@ use crate::{
     lval::{lval_add, lval_builtin, lval_qexpr, lval_sym, LBuiltin, Lval},
 };
 use hashbrown::HashMap;
-use std::{
-    fmt,
-    sync::{Arc, RwLock},
-};
+use std::fmt;
 
-lazy_static! {
-    pub static ref ENV: LenvT = new_lenvt();
-}
-
-pub type LenvT = Arc<RwLock<Lenv>>;
-
-#[derive(Debug, Clone)]
-pub struct Lenv {
+#[derive(Debug)]
+pub struct Lenv<'a> {
     lookup: HashMap<String, Box<Lval>>,
-    pub parent: Option<LenvT>,
+    pub parent: Option<&'a mut Lenv<'a>>,
 }
 
-impl Lenv {
-    pub fn new(parent: Option<LenvT>) -> Self {
+impl<'a> Lenv<'a> {
+    pub fn new(parent: Option<&mut Lenv>) -> Self {
         let mut ret = Self {
             lookup: HashMap::new(),
             parent,
@@ -81,7 +72,7 @@ impl Lenv {
         // iterate up through parents until we find the root
         match &self.parent {
             Some(env) => {
-                env.write()?.def(k, v)?;
+                env.def(k, v)?;
                 Ok(())
             }
             None => {
@@ -100,11 +91,7 @@ impl Lenv {
                 // this will recur all the way up to the global scope
                 match &self.parent {
                     None => Err(BlisprError::UnknownFunction(k.to_string())),
-                    Some(p_env) => {
-                        let arc = Arc::clone(&p_env);
-                        let r = arc.read()?;
-                        r.get(k)
-                    }
+                    Some(p_env) => p_env.get(k),
                 }
             }
         }
@@ -129,7 +116,7 @@ impl Lenv {
     }
 }
 
-impl fmt::Display for Lenv {
+impl<'a> fmt::Display for Lenv<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let parent_str = if let Some(_) = self.parent {
             "Child"
@@ -140,20 +127,9 @@ impl fmt::Display for Lenv {
     }
 }
 
-impl PartialEq for Lenv {
+impl<'a> PartialEq for Lenv<'a> {
     fn eq(&self, other: &Lenv) -> bool {
-        let parent_lookup = match &self.parent {
-            Some(arc) => arc.read().unwrap(),
-            _ => return true,
-        };
-        let other_parent_lookup = match &other.parent {
-            Some(arc) => arc.read().unwrap(),
-            _ => return true,
-        };
-        self.lookup == other.lookup && *parent_lookup == *other_parent_lookup
+        // Note - doesn't compare parents!
+        self.lookup == other.lookup
     }
-}
-
-pub fn new_lenvt() -> LenvT {
-    Arc::new(RwLock::new(Lenv::new(None)))
 }

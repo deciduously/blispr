@@ -1,38 +1,16 @@
-use crate::{
-    error::{BlisprError, BlisprResult, Result},
-    lenv::{new_lenvt, LenvT},
-};
+use crate::error::{BlisprError, BlisprResult, Result};
 use std::fmt;
 
 // The recursive types hold their children in one of these bad boys
 // TODO Should this be a VecDeque or a LinkedList instead?
 type LvalChildren = Vec<Box<Lval>>;
-pub type LBuiltin = fn(LenvT, Box<Lval>) -> BlisprResult;
+pub type LBuiltin = fn(Box<Lval>) -> BlisprResult;
 
 // There are two types of function - builtin and lambda
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LvalFun {
-    Builtin(LBuiltin),                   // (function pointer)
-    Lambda(LenvT, Box<Lval>, Box<Lval>), // (environment, formals, body), both should be Qexpr
-}
-
-impl PartialEq for LvalFun {
-    fn eq(&self, other: &LvalFun) -> bool {
-        match self {
-            LvalFun::Builtin(fp) => match other {
-                LvalFun::Builtin(other_fp) => fp == other_fp,
-                _ => false,
-            },
-            LvalFun::Lambda(e, f, b) => match other {
-                LvalFun::Lambda(other_e, other_f, other_b) => {
-                    let self_env = e.read().unwrap();
-                    let other_env = other_e.read().unwrap();
-                    *self_env == *other_env && f == other_f && b == other_b
-                }
-                _ => false,
-            },
-        }
-    }
+    Builtin(LBuiltin),            // (function pointer)
+    Lambda(Box<Lval>, Box<Lval>), // (environment, formals, body), both should be Qexpr
 }
 
 // The main type - all possible Blispr values
@@ -74,7 +52,7 @@ impl fmt::Display for Lval {
         match self {
             Lval::Fun(lf) => match lf {
                 LvalFun::Builtin(fun) => write!(f, "<builtin: {:?}>", fun),
-                LvalFun::Lambda(_, formals, body) => write!(f, "(\\ {} {})", formals, body),
+                LvalFun::Lambda(formals, body) => write!(f, "(\\ {} {})", formals, body),
             },
             Lval::Num(n) => write!(f, "{}", n),
             Lval::Sym(s) => write!(f, "{}", s),
@@ -107,7 +85,7 @@ pub fn lval_builtin(f: LBuiltin) -> Box<Lval> {
 }
 
 pub fn lval_lambda(formals: Box<Lval>, body: Box<Lval>) -> Box<Lval> {
-    Box::new(Lval::Fun(LvalFun::Lambda(new_lenvt(), formals, body)))
+    Box::new(Lval::Fun(LvalFun::Lambda(formals, body)))
 }
 
 pub fn lval_num(n: i64) -> Box<Lval> {
