@@ -146,6 +146,17 @@ blispr> list a b x y
 {1 2 3 4}
 ```
 
+* User-defined lambdas
+
+Partial application isn't working yet.
+
+```lisp
+blispr> def {embiggen} (\ {x y} {^ (* x y) (+ x y)})
+()
+blispr> embiggen 2 3
+7776
+```
+
 ...that's it!
 
 Only accepts integers for now, decimal points in numbers are a syntax error.

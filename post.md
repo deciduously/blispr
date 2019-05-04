@@ -6,9 +6,9 @@ This post is not intended to be a replacement for that text, by a long shot - go
 
 ## The Task
 
-If you've never attempted something like this before, it's helpful to understand the high-level overview of the program we need to write.  Out program will take a string as input and attempt to evaluate the result.  We need to *read* the string into something called an [Abstract Syntax Tree](https://en.wikipedia.org/wiki/Abstract_syntax_tree) (referred to as AST going forward), *parse* that AST to build an internal representation of the program, and then *evaluate* that representation.  To do this, we'll need to semantically tag each element so that our program can methodically work its way through, understanding what each part is.
+If you've never attempted something like this before, it's helpful to understand the high-level overview of the program we need to write.  This program will take a string as input and attempt to evaluate the result.  We need to *parse* the string into a tree of semantically tagged lexical tokens, *read* this parse tree of tokens into a structure called an [Abstract Syntax Tree](https://en.wikipedia.org/wiki/Abstract_syntax_tree) (referred to as AST going forward), and then *evaluate* that AST.  To do this, we'll need to semantically tag each element so that our program can methodically work its way through, understanding what each part is.
 
-For a small concrete example, let's look at the input string `+ 2 (* 3 4)`.  To work with this input, we need to build a structure like the following:
+Don't worry if you're not familiar with those data structures.  It's not as complicated as it sounds (and we're shelling parsing out to a library).  For a small concrete example, let's look at the input string `+ 2 (* 3 4) 5`.  To work with this input, we need to build a an AST structure like the following:
 
 ```rust
 S-Expression(
@@ -18,7 +18,8 @@ S-Expression(
         Symbol("*"),
         Number(3),
         Number(4),
-    )
+    ),
+    Number (5),
 )
 ```
 
@@ -26,9 +27,20 @@ The whole program is represented as an [S-Expression](https://en.wikipedia.org/w
 
 ```rust
 S-Expression(
+    Symbol("*"),
+    Number(3),
+    Number(4),
+)
+```
+
+This will be interpreted as a 
+
+```rust
+S-Expression(
     Symbol("+"),
     Number(2),
     Number(12),
+    Number(5),
 )
 ```
 
@@ -36,9 +48,20 @@ Now we have a binary operation as the first element of the S-expression and two 
 
 As part of the evaluation of an S-Expression, we'll look for a function corresponding to the `Symbol` in the first position.  To do this we'll also be creating an environment where we can store key/value pairs - at the key `+` will be stored a function pointer to the function we need.  If the user tries to use a name that doesn't have a corresponding function it will return an error - `"unbound function"` or the likes.  User-defined functions will also create their own local environments, and any user-defined value created with, e.g. `def {x} 10` will be stored in this environment as well.
 
-In addition to arithmetic operators, we'll add builtin functions to the environment to manipulate lists and define your own functions - you know, do programming!
+The other data type in this particular (idiosyncratic) lisp is `Qexpr`, and is represented with curly braces: `{1 2 3}`.  You can turn a list of arguments into a list with `list` and evaluate a list as if it were an S-Expression with `eval`:
 
-For better or worse (probably worse), I've called this implementation `blispr`.
+```
+lisp>{+ 1 2}
+{+ 1 2}
+lisp>list + 1 2
+{+ 1 2}
+lisp> eval (list + 1 2)
+3
+```
+
+In addition to arithmetic operators, we'll add builtin functions to the environment to manipulate lists and define your own values and functions - you know, do programming!
+
+I learned a lot about C, interpreters, and Rust from this project, and highly recommend the exercise.  For better or worse (probably worse), I've called this implementation `blispr`.  
 
 ## Rustyline
 
@@ -93,13 +116,11 @@ pub fn eval_str(s: &str) -> Result<()> {
 }
 ```
 
-This function does four things.  The first line stores the parsed AST.  This tags our input string with semantic grammatical tags that we'll define below.  The next line reads that AST into a a type called an `Lval`, which represents the whole program as a lisp value that can be evaluated recursively.  Finally, we print out the result of .  Any errors that happened along the way were caught with the `?` operator - below we'll see what that `Result<T>` alias represents.
-
-
+This function does four things.  The first line stores the parse tree.  This tags our input string with semantic grammatical tags that we'll define below.  The next line reads that tree into our AST, which represents the whole program as a lisp value that can be evaluated recursively.  Finally, we print out the result of evaluating the AST.  Any errors that happened along the way were caught with the `?` operator - below we'll see what that `Result<T>` alias represents.
 
 ## Lval
 
-To represent all the possible values this lisp can represent, I used a Rust `enum` called `Lval`:
+To represent Abstract Syntax Tree, I used a Rust `enum` called `Lval`:
 
 ```rust
 // LvalChildren is how the recursive types hold their children
@@ -216,7 +237,7 @@ impl From<std::io::Error> for BlisprError {
 
 This way I can still use the `?` operator on function calls that return these other error types inside functions that return a `BlisprResult`, and any errors returned will be automatically converted to the proper `BlisprError` for me.  Instead of storing specific error-type `Lval`s during our evaluation that are carried through the whole computation and finally printed out, all errors are bubbled up through the type system, but you still get the full `pest`-generated error carried along:
 
-```
+```lisp
 blispr> {{(+}}
 Parse error:  --> 1:5
   |
@@ -224,7 +245,7 @@ Parse error:  --> 1:5
   |     ^---
   |
   = expected expr
-blispr> 
+blispr>
 ```
 
 Full disclosure: to write the `pest::error::Error<T>` block, I just wrote what I wanted, i.e. `BlisprError::ParseError(format!("{}", error))` and appeased the compiler.  There is likely a better way to go about this but it works!
@@ -309,6 +330,8 @@ The result of `lval_read()` will be a single `Lval::Sexpr` containing the entire
 
 ## Environment
 
+Oh indextree, oh indextree...
+
 Before we dig into how `lval_eval()` does its mojo lets pause and talk about the environment.  This is how symbols are able to correspond to functions and values - otherwise `"+"` would just be that character, but we need to to specifically correspond to the addition function.
 
 Jury's out on whether or not I have the right idea, here, but I also handled this differently from the book.  The original text has you create a `struct` that holds two arrays and a counter, one for keys and the other for values.  To perform a lookup, you find the index of that key and then return the value at that same index in the values.  This struct is built before the program enters the loop, and is passed in manually to every single function that gets called.
@@ -319,15 +342,15 @@ I've also opted for a [`HashMap`](https://doc.rust-lang.org/std/collections/stru
 
 ```rust
 lazy_static! {
-    pub static ref ENV: LenvT<'static> = Arc::new(RwLock::new(Lenv::new(None)));
+    pub static ref ENV: LenvStore<'static> = Arc::new(RwLock::new(Lenv::new(None)));
 }
 
-pub type LenvT = Arc<RwLock<Lenv>>;
+pub type LenvStore = Arc<RwLock<Lenv>>;
 
 #[derive(Debug, Clone)]
 pub struct Lenv {
     lookup: HashMap<String, Box<Lval>>,
-    parent: Option<LenvT>,
+    parent: Option<LenvStore>,
 }
 ```
 
@@ -399,7 +422,7 @@ Environments optionally hold a parent environment, and if the lookup fails in th
 
 ## Eval
 
-The `lval_eval()` called in `eval_str()` is where the real crunching happens.  This will take an `Lval` and recursively evaluate it to a final `Lval`.  Most types of `Lval` are already evaluated fully - but any `S-Expression` found will need to be evaluated, and any `Symbol` gets looked up in the environment.
+The `lval_eval()` called in `eval_str()` is where the real crunching happens.  This will take an `Lval` (that is, an AST) and recursively evaluate it to a final `Lval`.  Most types of `Lval` are already evaluated fully - but any `S-Expression` found will need to be evaluated, and any `Symbol` gets looked up in the environment.
 
 Before looking at the Rust, let's break it down in English:
 
@@ -472,6 +495,3 @@ pub fn lval_eval(mut v: Box<Lval>) -> BlisprResult {
     }
 }
 ```
-
-
-
