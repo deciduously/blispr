@@ -471,7 +471,8 @@ pub fn lval_call(e: &mut Lenv, f: Lval, args: &mut Lval) -> BlisprResult {
                     } else {
                         // Otherwise return partially evaluated function
                         // build a new lval for it
-                        // TODO this doesn't carry a local environment!
+                        // TODO this doesn't carry a local environment! this is broken until I figure out how to do that
+                        // If I carry it with the Lambda Lval it infects Lval with a lifetime annotation that runs into issues.
                         debug!("Returning partially applied lambda");
                         Ok(lval_lambda(formals.clone(), body.clone()))
                     }
