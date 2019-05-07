@@ -11,7 +11,6 @@ use std::{
 pub enum BlisprError {
     DivideByZero,
     EmptyList,
-    LockError,
     NoChildren,
     NotANumber,
     NumArguments(usize, usize),
@@ -30,7 +29,6 @@ impl fmt::Display for BlisprError {
         match self {
             DivideByZero => write!(f, "Divide by zero"),
             EmptyList => write!(f, "Empty list"),
-            LockError => write!(f, "Could not obtain lock on global environment!"),
             NoChildren => write!(f, "Lval has no children"),
             NotANumber => write!(f, "NaN"),
             NumArguments(expected, received) => write!(
@@ -62,12 +60,6 @@ where
 impl From<std::num::ParseIntError> for BlisprError {
     fn from(_error: std::num::ParseIntError) -> Self {
         BlisprError::NotANumber
-    }
-}
-
-impl<T> From<std::sync::PoisonError<T>> for BlisprError {
-    fn from(_error: std::sync::PoisonError<T>) -> Self {
-        BlisprError::LockError
     }
 }
 

@@ -68,9 +68,10 @@ I learned a lot about C, interpreters, and Rust from this project, and highly re
 First thing's first, we've got to collect us some strings.  I highly recommend [`rustyline`](https://github.com/kkawakam/rustyline), a pure-Rust `readline` implementation.  This is all you have to do:
 
 ```rust
-pub fn repl() -> Result<()> {
+pub fn repl(e: &mut Lenv) -> Result<()> {
     println!("Blispr v0.0.1");
     println!("Use exit(), Ctrl-C, or Ctrl-D to exit prompt");
+    debug!("Debug mode enabled");
 
     let mut rl = Editor::<()>::new();
     if rl.load_history("./.blispr-history.txt").is_err() {
@@ -83,17 +84,22 @@ pub fn repl() -> Result<()> {
         match input {
             Ok(line) => {
                 rl.add_history_entry(line.as_ref());
-                if let Err(e) = eval_str(&line) {
-                    eprintln!("{}", e);
+                // if eval_str is an error, we want to catch it here, inside the loop, but still show the next prompt
+                // just using ? would bubble it up to main()
+                if let Err(err) = eval_str(e, &line) {
+                    eprintln!("{}", err);
                 }
             }
             Err(ReadlineError::Interrupted) => {
+                info!("CTRL-C");
                 break;
             }
             Err(ReadlineError::Eof) => {
+                info!("CTRL-D");
                 break;
             }
             Err(err) => {
+                warn!("Error: {:?}", err);
                 break;
             }
         }
@@ -101,38 +107,40 @@ pub fn repl() -> Result<()> {
     rl.save_history("./.blispr-history.txt")?;
     Ok(())
 }
+
 ```
 
-One thing to note is that I'm not propagating the error that `eval_str` might throw up to the caller here with `?` - I don't want evaluation errors to crash the repl!  Anything that can happen inside `eval_str()` I just want to inform the user about with `eprintln!()` and loop again.
+One thing to note is that I'm not propagating the error that `eval_str` might throw up to the caller here with `?` - I don't want evaluation errors to crash the repl!  Anything that can happen inside `eval_str()` I just want to inform the user about with `eprintln!()` and loop again.  The `&mut Lenv` getting passed through is the global environment - more on that below.
 
 The next step is hinted at in the `Ok()` arm of the `match` - the meat of the work is happening in `eval_str()`:
 
 ```rust
-pub fn eval_str(s: &str) -> Result<()> {
+pub fn eval_str(e: &mut Lenv, s: &str) -> Result<()> {
     let parsed = BlisprParser::parse(Rule::blispr, s)?.next().unwrap();
-    let lval_ptr = lval_read(parsed)?;
-    println!("{}", lval_eval(lval_ptr)?);
+    let mut lval_ptr = lval_read(parsed)?;
+    let result = lval_eval(e, &mut *lval_ptr)?;
+    println!("{}", result);
     Ok(())
 }
 ```
 
-This function does four things.  The first line stores the parse tree.  This tags our input string with semantic grammatical tags that we'll define below.  The next line reads that tree into our AST, which represents the whole program as a lisp value that can be evaluated recursively.  Finally, we print out the result of evaluating the AST.  Any errors that happened along the way were caught with the `?` operator - below we'll see what that `Result<T>` alias represents.
+This is it, this is the whole deal.  This function does all four things required to evaluate a programming language.  The first line stores the parse tree to `parsed`.  This tags our input string with semantic grammatical tags that we'll define below.  The next line reads that tree into our AST at `lval_ptr`, which represents the whole program as a lisp value that can be evaluated recursively.  We get the result of evaluating that AST into its fully evaluated form in `result`, and finally print it out.  Any errors that happened along the way were caught with the `?` operator - below we'll see what that `Result<T>` alias represents.
 
 ## Lval
 
 To represent the AST, I used a Rust `enum` called `Lval`:
 
 ```rust
-// LvalChildren is how the recursive types hold their children
+// The recursive types hold their children in a `Vec`
 type LvalChildren = Vec<Box<Lval>>;
-// LBuiltin is an aliased function pointer
-pub type LBuiltin = fn(Box<Lval>) -> BlisprResult;
+// This is a function pointer type
+pub type LBuiltin = fn(&mut Lval) -> BlisprResult;
 
-// There are two types of functions
-#[derive(Debug, Clone, PartialEq)]
+// There are two types of function - builtin and lambda
+#[derive(Clone)]
 pub enum LvalFun {
-    Builtin(LBuiltin),                       // (function pointer)
-    Lambda(Box<Lenv>, Box<Lval>, Box<Lval>), // (environment, formals, body), both should be Qexpr
+    Builtin(String, LBuiltin), // (name, function pointer)
+    Lambda(HashMap<String, Box<Lval>>, Box<Lval>, Box<Lval>), // (environment, formals, body), both should be Qexpr
 }
 
 // The main type - all possible Blispr values
@@ -146,11 +154,13 @@ pub enum Lval {
 }
 ```
 
-Each variant carries its contents with it.  As we read our text, each element is going to be converted into the proper type of `Lval`.    In the simple sense, a string like `"4"` is going to be parsed into `Lval::Num(4)`.  Now our pogram will understand what this `4` shindig is all about.  I've also implemented [`fmt::Display`](https://doc.rust-lang.org/std/fmt/trait.Display.html) for this type, which is responsible for defining the output string to be finally displayed to the user.  With the auto-derived `Debug` trait we get something like `Lval::Num(4)`, and with `Display` we just get `4`.
+Each variant carries its contents with it.  As we read the text each element is going to be converted into the proper type of `Lval`.    For example, a string like `"4"` is going to be parsed into `Lval::Num(4)`.  Now this value can be used in the context of a larger evaluation.  I've also implemented [`fmt::Display`](https://doc.rust-lang.org/std/fmt/trait.Display.html) for this type, which is responsible for defining the output string to be finally displayed to the user.  With the auto-derived `Debug` trait we get something like `Lval::Num(4)`, and with `Display` we just get `4`.
 
-We have numbers, symbols, functions (two different types of function - more on those later on), and two types of expression list - s-expressions and q-expressions.  S-expressions will be evaluated as code, looking for a function in the first position, and q-expressions are evaluated as just lists of data.  The whole program that's read in is going to be one big containing `Lval::Sexpr`, and we just need to evaluate it until we only have a result needing no futher evaluation, either a `Num`, `Sym`, or `Qexpr`.  As a simple example, `"+ 1 2"` is going to get stored as `Sexpr(Sym("+"), Num("1"), Num("2"))`.
+We have numbers, symbols, functions (two different types of function - more on those later on), and two types of expression list - s-expressions and q-expressions.  S-expressions will be evaluated as code, looking for a function in the first position, and q-expressions are evaluated as just lists of data.  The whole program that's read in is going to be one big containing `Lval::Sexpr`, and we just need to evaluate it until we only have a result needing no further evaluation, either a `Num`, `Sym`, or `Qexpr`.
 
-This code makes use of the `Box` pointer type, which is a smart pointer to a heap-allocated value.  Because an `Lval` can hold many different types of data, the size of a given `Lval` is not known at compile-time.  By only storing pointers to values on the heap, we can build lists of them.  Because these `Box`es adhere to Rust's ownership and borrowing semantics, Rust is going to manage cleaning them up for us when they are no longer needed.  This is how we'll manage our memory over the lifetime of the program - with quite a bit less ceremony than the corresponding C!  If we *move* a `Box<Lval>` into a function during a function call and that function returns a *brand new* `Box<Lval>`, the old one will be detected as no longer in use and dropped automatically at the end of that function.  To build a new one, we use a constructor.  For example:
+As a simple example, `"+ 1 2"` is going to get stored as `Sexpr(Sym("+"), Num(1), Num(2))`.  When this `Sexpr` is evaluated, it will first look up `+` in the environment and find a function pointer to the built-in addition function: `Sexpr(Fun(Builtin("+"), Num(1), Num("2")))`.  Then this `Sexpr` will be evaluated as a function call, yielding `Num(3)`, which cannot be evaluated further.
+
+This code makes use of the `Box` pointer type, which is a smart pointer to a heap-allocated value.  Because an `Lval` can hold many different types of data, the size of a given `Lval` is not known at compile-time.  By only storing pointers to values on the heap, we can build lists of them.  Because these `Box`es adhere to Rust's ownership and borrowing semantics, Rust is going to manage cleaning them up for us when they are no longer needed.  This is how we'll manage our memory over the lifetime of the program - with quite a bit less ceremony than the corresponding C!  To build a new one, we use a constructor.  For example:
 
 ```rust
 pub fn lval_num(n: i64) -> Box<Lval> {
@@ -164,10 +174,10 @@ The containing types start out with an empty `Vec` of children, and can be manip
 
 ```rust
 // Add lval x to lval::sexpr or lval::qexpr v
-pub fn lval_add(v: &mut Lval, x: Box<Lval>) -> Result<()> {
+pub fn lval_add(v: &mut Lval, x: &Lval) -> Result<()> {
     match *v {
         Lval::Sexpr(ref mut children) | Lval::Qexpr(ref mut children) => {
-            children.push(x);
+            children.push(Box::new(x.clone()));
         }
         _ => return Err(BlisprError::NoChildren),
     }
@@ -187,7 +197,7 @@ pub fn lval_pop(v: &mut Lval, i: usize) -> BlisprResult {
 }
 ```
 
-Both of these functions mutate their first argument in place, either removing or adding a child.  `Lval_add` consumes the second arg by taking ownership - it cannot be used again after adding it to another Lval because it is now owned by the containing `Lval`.
+Both of these functions mutate their first argument in place, either removing or adding a child.
 
 ## Errors
 
@@ -216,7 +226,7 @@ pub type Result<T> = std::result::Result<T, BlisprError>;
 pub type BlisprResult = Result<Box<Lval>>;
 ```
 
-The majority of evaluation functions are going to return a `Result<Box<Lval>, BlisprError>`, now I can just type `BlisprResult`.  The few here and there that don't have a success type of `Box<LVal>` can still use this new `Result<T>` alias instead of the more verbose built-in `Result<T, E>`, and the error type will automatically always be this `BlisprError`.  WHich is what we want!  In order to be able to use this throughout our entire program, I've provided `impl From<E> for BlisprError` for a few other types of errors that are thrown, like `std::io::Error` and `pest::error::Error` for example:
+The majority of evaluation functions are going to return a `Result<Box<Lval>, BlisprError>`, now I can just type `BlisprResult`.  The few here and there that don't have a success type of `Box<Lval>` can still use this new `Result<T>` alias instead of the more verbose built-in `Result<T, E>`, and the error type will automatically always be this `BlisprError`.  In order to be able to use this throughout our entire program, I've provided `impl From<E> for BlisprError` for a few other types of errors that are thrown, like `std::io::Error` and `pest::error::Error` for example:
 
 ```rust
 impl<T> From<pest::error::Error<T>> for BlisprError
@@ -238,21 +248,20 @@ impl From<std::io::Error> for BlisprError {
 This way I can still use the `?` operator on function calls that return these other error types inside functions that return a `BlisprResult`, and any errors returned will be automatically converted to the proper `BlisprError` for me.  Instead of storing specific error-type `Lval`s during our evaluation that are carried through the whole computation and finally printed out, all errors are bubbled up through the type system, but you still get the full `pest`-generated error carried along:
 
 ```lisp
-blispr> {{(+}}
-Parse error:  --> 1:5
+blispr> eval {* 2 3)
+Parse error:  --> 1:12
   |
-1 | {{(+}}
-  |     ^---
+1 | eval {* 2 3)
+  |            ^---
   |
   = expected expr
-blispr>
 ```
 
 Full disclosure: to write the `pest::error::Error<T>` block, I just wrote what I wanted, i.e. `BlisprError::ParseError(format!("{}", error))` and appeased the compiler.  There is likely a better way to go about this but it works!
 
 ## Parsing
 
-The book uses the author's own parser combinator library called [mpc](https://github.com/orangeduck/mpc).  If I were to tackle another similar problem in C, I'd likely reach for it again.  Rust, however, has its own strong ecosystem for parsing.  The two heavyweights in this space are [nom](https://github.com/Geal/nom) and [pest](https://github.com/pest-parser/pest).  For this project I opted for pest, to stay as close to the source material as possible.  Whereas `nom` will have you defining your own [parser combinators](https://dev.to/deciduously/parser-combinators-are-easy-4bjm), with `pest` you provide a PEG (or [Parsing Expression Grammar](https://en.wikipedia.org/wiki/Parsing_expression_grammar)), separately from your code.  Pest then uses Rust's powerful custom derive tooling to create a parse for your grammar automatically.
+The book uses the author's own parser combinator library called [mpc](https://github.com/orangeduck/mpc).  If I were to tackle another similar problem in C, I'd likely reach for it again.  Rust, however, has its own strong ecosystem for parsing.  Some of the heavyweights in this space are [nom](https://github.com/Geal/nom), [combine](https://github.com/Marwes/combine),  and [pest](https://github.com/pest-parser/pest).  For this project I opted for pest, to stay as close to the source material as possible.  Whereas `nom` and `combine` will have you defining your own [parser combinators](https://dev.to/deciduously/parser-combinators-are-easy-4bjm), with `pest` you provide a PEG (or [Parsing Expression Grammar](https://en.wikipedia.org/wiki/Parsing_expression_grammar)), separately from your code.  Pest then uses Rust's powerful custom derive tooling to create a parse for your grammar automatically.
 
 Here's the grammar I used for this language:
 
@@ -302,7 +311,7 @@ fn lval_read(parsed: Pair<Rule>) -> BlisprResult {
                 if is_bracket_or_eoi(&child) {
                     continue;
                 }
-                lval_add(&mut ret, lval_read(child)?)?;
+                lval_add(&mut ret, &*lval_read(child)?)?;
             }
             Ok(ret)
         }
@@ -313,7 +322,7 @@ fn lval_read(parsed: Pair<Rule>) -> BlisprResult {
                 if is_bracket_or_eoi(&child) {
                     continue;
                 }
-                lval_add(&mut ret, lval_read(child)?)?;
+                lval_add(&mut ret, &*lval_read(child)?)?;
             }
             Ok(ret)
         }
@@ -324,37 +333,27 @@ fn lval_read(parsed: Pair<Rule>) -> BlisprResult {
 }
 ```
 
-At the bottom, `lval_eval` takes a string input.  We parse it into an AST using `BlisprParser::parse()`, which attempts to build the tree using the grammar we provided.  One AST will always correspond to one `Lval`.  We pass the parsed AST into `lval_read`, which will recursively build it for us.  This function looks at the top-level rule and takes an appropriate action.  The top-level rule, `blispr`, is treated as an S-expression, and for an S-expression we allocate a new `Lval` with `lval_sexpr()`. Then every child in the AST is added as a child to this containing `Lval`, passing through `lval_read()` itself to turn it into the correct `Lval`.  The rule for `qexpr` is similar, and the other rules just create the corresponding `Lval` from the type given.  The one weird one is `Rule::expr` - this is a sort of meta-rule that matches any of the valid expression types, so it's not its own lval, just wrapping one of a more specific type.  We just use `next()` to pass the actual rule found back into `lval_read()`.
+We pass the parsed AST into `lval_read`, which will recursively build it for us.  This function looks at the top-level rule and takes an appropriate action.  The top-level rule, `blispr`, is treated as an S-expression, and for an S-expression we allocate a new `Lval` with `lval_sexpr()`. Then every child in the AST is added as a child to this containing `Lval`, passing through `lval_read()` itself to turn it into the correct `Lval`.  The rule for `qexpr` is similar, and the other rules just create the corresponding `Lval` from the type given.  The one weird one is `Rule::expr` - this is a sort of meta-rule that matches any of the valid expression types, so it's not its own lval, just wrapping one of a more specific type.  We just use `next()` to pass the actual rule found back into `lval_read()`.
 
 The result of `lval_read()` will be a single `Lval::Sexpr` containing the entire parsed program, saved in `lval_ptr`.  Then we call `lval_eval()`, which will also return a `BlisprResult`.  If the evaluation is successful we just print out the result, and if any error was raised we print that error instead.
 
 ## Environment
 
-Oh indextree, oh indextree...
-
 Before we dig into how `lval_eval()` does its mojo lets pause and talk about the environment.  This is how symbols are able to correspond to functions and values - otherwise `"+"` would just be that character, but we need to to specifically correspond to the addition function.
 
 Jury's out on whether or not I have the right idea, here, but I also handled this differently from the book.  The original text has you create a `struct` that holds two arrays and a counter, one for keys and the other for values.  To perform a lookup, you find the index of that key and then return the value at that same index in the values.  This struct is built before the program enters the loop, and is passed in manually to every single function that gets called.
 
-Instead, I decided to leverage the [`lazy_static`](https://github.com/rust-lang-nursery/lazy-static.rs) crate.  This allows you to define `static` values that require runtime initialization like heap allocation.
-
-I've also opted for a [`HashMap`](https://doc.rust-lang.org/std/collections/struct.HashMap.html) data structure instead of two separated arrays with matching indices:
+Instead, I've opted for a [`HashMap`](https://doc.rust-lang.org/std/collections/struct.HashMap.html) data structure instead of two separated arrays with matching indices:
 
 ```rust
-lazy_static! {
-    pub static ref ENV: LenvStore<'static> = Arc::new(RwLock::new(Lenv::new(None)));
-}
-
-pub type LenvStore = Arc<RwLock<Lenv>>;
-
-#[derive(Debug, Clone)]
-pub struct Lenv {
+#[derive(Debug, PartialEq)]
+pub struct Lenv<'a> {
     lookup: HashMap<String, Box<Lval>>,
-    parent: Option<LenvStore>,
+    pub parent: Option<&'a Lenv<'a>>,
 }
 ```
 
-The `Lenv` itself only holds the lookup table, but when we initialize it in the `lazy_static!` block it gets wrapped in an `Arc<RwLock<T>>`.  The `Arc` is a reference-counted type - it will get de-allocated when no further references to it exist.  Cloning an `Arc` just returns a new pointer to the same data on the heap and increments this counter, and when the new clone goes out of scope the counter will auto-decrement.  Great.  The `RwLock` is a special type of mutex that allows either multiple concurrent readers or a single writer at a time, but not both.  This makes it ideal for use as the `parent` pointer type.  To use it, we can just make a new clone without worrying taht we're needlessly copying the data, and the `Arc` will neatly destruct itself when appropriate.  At present this code doesn't take advantage of any parallel execution, but having the environment thus typed should make that process easier as well.
+The `Lenv` itself holds the lookup table and optionally a reference to a parent.
 
 I've got some helper methods for getting, setting, and enumerating the contents:
 
@@ -394,24 +393,6 @@ impl Lenv {
             // if it already existed, overwrite it with v
             *current = v;
         }
-    }
-}
-```
-
-I did have to manually implement `PartialEq` for these ones and unwrap the parents myself:
-
-```rust
-impl PartialEq for Lenv {
-    fn eq(&self, other: &Lenv) -> bool {
-        let parent_lookup = match &self.parent {
-            Some(arc) => arc.read().unwrap(),
-            _ => return true,
-        };
-        let other_parent_lookup = match &other.parent {
-            Some(arc) => arc.read().unwrap(),
-            _ => return true,
-        };
-        self.lookup == other.lookup && *parent_lookup == *other_parent_lookup
     }
 }
 ```
