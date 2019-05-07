@@ -148,13 +148,18 @@ blispr> list a b x y
 
 * User-defined lambdas
 
-Partial application isn't working yet.
+Now with partial application!
 
 ```
 blispr> def {embiggen} (\ {x y} {^ (* x y) (+ x y)})
 ()
 blispr> embiggen 2 3
 7776
+blispr> def {real-big} (embiggen 4)
+()
+blispr> real-big 2
+262144
+blispr> 
 ```
 
 ...that's it!

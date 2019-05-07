@@ -496,7 +496,16 @@ pub fn lval_eval(mut v: Box<Lval>) -> BlisprResult {
 }
 ```
 
-## Difficulties
+## Difficulties/Hacks
+
+* Stub builtins
+
+To get around LBuiltin not taking an env even though a few builtins need one.  lval_eval() does have a `&mut Lenv` available, so it just dispathes these special cases separately.  This is kludgy.
+
+
+* Partially defined lambdas
+
+The book just carried a pointer to a Lenv, nice and easy.  This led me down the Rabbit Hole from Hell in Rust translating line by line.  Lifetrime probels, `Arc<RwLock<T>>` problems, aren-astyle allocation problems - it was hairy.  I enventually jsut decided to store a `HashMap` containing just the paritally applied formals and have `lval_call` handle applying them.
 
 ### Scoped Environments
 

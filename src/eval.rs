@@ -5,6 +5,7 @@ use crate::{
         lval_add, lval_join, lval_lambda, lval_num, lval_pop, lval_qexpr, lval_sexpr, Lval, LvalFun,
     },
 };
+use hashbrown::HashMap;
 use std::ops::{Add, Div, Mul, Rem, Sub};
 
 // macro to shorten code for applying a binary operation to two Lvals
@@ -171,8 +172,6 @@ fn builtin_var(e: &mut Lenv, a: &mut Lval, func: &str) -> BlisprResult {
                     }
                 }
                 Ok(lval_sexpr())
-
-                // write lock dropped here
             }
         }
         _ => Err(BlisprError::WrongType(
@@ -337,7 +336,7 @@ pub fn builtin_lambda(v: &mut Lval) -> BlisprResult {
                 }
             }
             match *body {
-                Lval::Qexpr(_) => Ok(lval_lambda(formals_ret, body)),
+                Lval::Qexpr(_) => Ok(lval_lambda(HashMap::new(), formals_ret, body)),
                 _ => Err(BlisprError::WrongType(
                     "Q-Expression".to_string(),
                     format!("{:?}", body),
@@ -433,13 +432,16 @@ pub fn lval_call(e: &mut Lenv, f: Lval, args: &mut Lval) -> BlisprResult {
                     // Otherwise, just apply the actual stored function pointer
                     _ => fp(args),
                 },
-                LvalFun::Lambda(mut formals, body) => {
+                LvalFun::Lambda(env, mut formals, body) => {
                     debug!(
-                        "Executing lambda.  Formals: {:?}, body: {:?}",
-                        formals, body
+                        "Executing lambda.  Environment: {:?}, Formals: {:?}, body: {:?}",
+                        env, formals, body
                     );
                     // If it's a Lambda, bind arguments to a new local environment
                     let mut local_env = Lenv::new(Some(e));
+                    // Also save a separate hashmap in case this is only partially applied?
+                    // Maybe I should just do this one.
+                    let mut new_env: HashMap<String, Box<Lval>> = HashMap::new();
                     // first grab the argument and body
                     let given = args.len()?;
                     let total = formals.len()?;
@@ -458,11 +460,20 @@ pub fn lval_call(e: &mut Lenv, f: Lval, args: &mut Lval) -> BlisprResult {
 
                         // bind a copy to the function's environment
                         debug!("lval_call: adding {},{} to local fn environment", sym, val);
+                        let curr = new_env.entry(sym.as_string()?).or_insert(val.clone());
+                        // if we're overwriting, overwrite!
+                        if *curr != val {
+                            *curr = val.clone();
+                        }
                         local_env.put(sym.as_string()?, val);
                     }
                     // if all formals have been bound
                     if formals.len()? == 0 {
                         // Evaluate and return
+                        // first, apply any held by the lambda.
+                        for (k, v) in env {
+                            local_env.put(k, v);
+                        }
                         let mut ret = lval_sexpr();
                         lval_add(&mut ret, &body)?;
                         debug!("lval_call: evaluating fully applied lambda {}", ret);
@@ -471,10 +482,9 @@ pub fn lval_call(e: &mut Lenv, f: Lval, args: &mut Lval) -> BlisprResult {
                     } else {
                         // Otherwise return partially evaluated function
                         // build a new lval for it
-                        // TODO this doesn't carry a local environment! this is broken until I figure out how to do that
-                        // If I carry it with the Lambda Lval it infects Lval with a lifetime annotation that runs into issues.
+                        // TODO this shouldnt carry the whole en,v just the new paritally applied ones!
                         debug!("Returning partially applied lambda");
-                        Ok(lval_lambda(formals.clone(), body.clone()))
+                        Ok(lval_lambda(new_env, formals.clone(), body.clone()))
                     }
                 }
             }

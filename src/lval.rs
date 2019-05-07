@@ -1,4 +1,5 @@
 use crate::error::{BlisprError, BlisprResult, Result};
+use hashbrown::HashMap;
 use std::fmt;
 
 // The recursive types hold their children in one of these bad boys
@@ -9,9 +10,13 @@ pub type LBuiltin = fn(&mut Lval) -> BlisprResult;
 // There are two types of function - builtin and lambda
 #[derive(Clone)]
 pub enum LvalFun {
-    Builtin(String, LBuiltin),    // (name, function pointer)
-    Lambda(Box<Lval>, Box<Lval>), // (environment(?), formals, body), both should be Qexpr // TODO these should both be Rc<T>
+    Builtin(String, LBuiltin), // (name, function pointer)
+    Lambda(HashMap<String, Box<Lval>>, Box<Lval>, Box<Lval>), // (environment(?), formals, body), both should be Qexpr // TODO these should both be Rc<T>
 }
+
+// The book has a pointer to an Lenv in the Lambda
+// I instead just store a plain old hashmap of any extras
+// it's then applied in lval_call
 
 // The main type - all possible Blispr values
 #[derive(Debug, Clone, PartialEq)]
@@ -51,7 +56,9 @@ impl fmt::Debug for LvalFun {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             LvalFun::Builtin(name, _) => write!(f, "Builtin({})", name),
-            LvalFun::Lambda(formals, body) => write!(f, "Lambda({{{}}},{{{}}})", formals, body),
+            LvalFun::Lambda(env, formals, body) => {
+                write!(f, "Lambda({{{:?}}},{{{}}},{{{}}})", env, formals, body)
+            }
         }
     }
 }
@@ -63,8 +70,10 @@ impl PartialEq for LvalFun {
                 LvalFun::Builtin(other_name, _) => name == other_name,
                 _ => false,
             },
-            LvalFun::Lambda(formals, body) => match other {
-                LvalFun::Lambda(other_f, other_b) => formals == other_f && body == other_b,
+            LvalFun::Lambda(env, formals, body) => match other {
+                LvalFun::Lambda(other_env, other_f, other_b) => {
+                    formals == other_f && body == other_b && env == other_env
+                }
                 _ => false,
             },
         }
@@ -76,7 +85,7 @@ impl fmt::Display for Lval {
         match self {
             Lval::Fun(lf) => match lf {
                 LvalFun::Builtin(name, _) => write!(f, "<builtin: {}>", name),
-                LvalFun::Lambda(formals, body) => write!(f, "(\\ {} {})", formals, body),
+                LvalFun::Lambda(_, formals, body) => write!(f, "(\\ {} {})", formals, body),
             },
             Lval::Num(n) => write!(f, "{}", n),
             Lval::Sym(s) => write!(f, "{}", s),
@@ -101,15 +110,16 @@ fn lval_expr_print(cell: &[Box<Lval>]) -> String {
 // Each allocates a brand new boxed Lval
 // The recursive types start empty
 
-// You can omit the lifetime annotations when the constructor is passed a reference
-// I included them for consistency
-
 pub fn lval_builtin(f: LBuiltin, name: &str) -> Box<Lval> {
     Box::new(Lval::Fun(LvalFun::Builtin(name.to_string(), f)))
 }
 
-pub fn lval_lambda(formals: Box<Lval>, body: Box<Lval>) -> Box<Lval> {
-    Box::new(Lval::Fun(LvalFun::Lambda(formals, body)))
+pub fn lval_lambda(
+    env: HashMap<String, Box<Lval>>,
+    formals: Box<Lval>,
+    body: Box<Lval>,
+) -> Box<Lval> {
+    Box::new(Lval::Fun(LvalFun::Lambda(env, formals, body)))
 }
 
 pub fn lval_num(n: i64) -> Box<Lval> {
