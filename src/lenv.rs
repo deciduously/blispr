@@ -9,16 +9,18 @@ use crate::{
 use hashbrown::HashMap;
 use std::fmt;
 
+pub type LEnvLookup = HashMap<String, Box<Lval>>;
+
 #[derive(Debug, PartialEq)]
 pub struct Lenv<'a> {
-    lookup: HashMap<String, Box<Lval>>,
+    lookup: LEnvLookup,
     pub parent: Option<&'a Lenv<'a>>,
 }
 
 impl<'a> Lenv<'a> {
-    pub fn new(parent: Option<&'a Lenv<'a>>) -> Self {
+    pub fn new(lookup: Option<LEnvLookup>, parent: Option<&'a Lenv<'a>>) -> Self {
         let mut ret = Self {
-            lookup: HashMap::new(),
+            lookup: lookup.unwrap_or(HashMap::new()),
             parent,
         };
 

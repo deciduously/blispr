@@ -78,7 +78,9 @@ fn run(opt: Opt) -> Result<()> {
     }
 
     pretty_env_logger::init();
-    let global_env = &mut Lenv::new(None); // None indicates no parent, i.e. root environment
+    // First arg is optional lookup map, second is optional parent env
+    // The root env starts empty (except for builtins) and has no parent
+    let global_env = &mut Lenv::new(None, None);
 
     if let Some(f) = opt.input {
         // if input file passed, eval its contents

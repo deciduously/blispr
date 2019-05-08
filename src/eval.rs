@@ -438,11 +438,10 @@ pub fn lval_call(e: &mut Lenv, f: Lval, args: &mut Lval) -> BlisprResult {
                         env, formals, body
                     );
                     // If it's a Lambda, bind arguments to a new local environment
-                    let mut local_env = Lenv::new(Some(e));
-                    // Also save a separate hashmap in case this is only partially applied?
-                    // Maybe I should just do this one.
+
+                    // First, build the lookup hashmap
                     let mut new_env: HashMap<String, Box<Lval>> = HashMap::new();
-                    // first grab the argument and body
+                    // grab the argument and body
                     let given = args.len()?;
                     let total = formals.len()?;
 
@@ -465,8 +464,9 @@ pub fn lval_call(e: &mut Lenv, f: Lval, args: &mut Lval) -> BlisprResult {
                         if *curr != val {
                             *curr = val.clone();
                         }
-                        local_env.put(sym.as_string()?, val);
                     }
+                    // Use the lookup map to initialize the new child env for evaluation
+                    let mut local_env = Lenv::new(Some(new_env.clone()), Some(e));
                     // if all formals have been bound
                     if formals.len()? == 0 {
                         // Evaluate and return
