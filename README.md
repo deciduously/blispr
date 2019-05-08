@@ -94,10 +94,10 @@ blispr> eval (list + 1 2)
 ```
 blispr> def {a b c d e f g h i j k l m n o p q r s t u v w x y z} 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
 ()
-blispr> def {func} {lambda {3 4} {+ a b}}
+blispr> def {func} (\ {a b} {+ a b})
 ()
 blispr> printenv()
-{g:7 m:13 o:15 head:<builtin> *:<builtin> f:6 list:<builtin> p:16 printenv:<builtin> d:4 tail:<builtin> ^:<builtin> cons:<builtin> j:10 sub:<builtin> q:17 init:<builtin> s:19 +:<builtin> %:<builtin> t:20 /:<builtin> u:21 v:22 w:23 y:25 z:26 func:{lambda {3 4} {+ a b}} mul:<builtin> join:<builtin> exit:<builtin> rem:<builtin> add:<builtin> def:<builtin> pow:<builtin> h:8 div:<builtin> b:2 max:<builtin> l:12 n:14 r:18 x:24 lambda:<builtin> e:5 k:11 eval:<builtin> -:<builtin> min:<builtin> c:3 i:9 len:<builtin> a:1}
+{g:7 m:13 o:15 head:<builtin: head> *:<builtin: *> f:6 list:<builtin: list> p:16 printenv:<builtin: printenv> d:4 tail:<builtin: tail> ^:<builtin: ^> cons:<builtin: cons> j:10 sub:<builtin: sub> q:17 init:<builtin: init> s:19 +:<builtin: +> %:<builtin: %> t:20 /:<builtin: /> v:22 w:23 y:25 z:26 func:(\ {a b} {+ a b}) mul:<builtin: mul> join:<builtin: join> exit:<builtin: exit> rem:<builtin: rem> add:<builtin: add> def:<builtin: def> pow:<builtin: pow> h:8 div:<builtin: div> \:<builtin: \> max:<builtin: max> b:2 l:12 n:14 r:18 x:24 k:11 e:5 u:21 eval:<builtin: eval> -:<builtin: -> min:<builtin: min> c:3 i:9 len:<builtin: len> a:1}
 blispr> exit()
 Goodbye!
 
