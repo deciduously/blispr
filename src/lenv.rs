@@ -20,7 +20,7 @@ pub struct Lenv<'a> {
 impl<'a> Lenv<'a> {
     pub fn new(lookup: Option<LEnvLookup>, parent: Option<&'a Lenv<'a>>) -> Self {
         let mut ret = Self {
-            lookup: lookup.unwrap_or(HashMap::new()),
+            lookup: lookup.unwrap_or_default(),
             parent,
         };
 

@@ -2,7 +2,7 @@ use crate::{
     error::{BlisprResult, Result},
     eval::lval_eval,
     lenv::Lenv,
-    lval::{lval_add, lval_num, lval_qexpr, lval_sexpr, lval_sym},
+    lval::{lval_add, lval_blispr, lval_num, lval_qexpr, lval_sexpr, lval_sym},
 };
 use pest::{iterators::Pair, Parser};
 
@@ -23,8 +23,9 @@ fn is_bracket_or_eoi(parsed: &Pair<Rule>) -> bool {
 
 fn lval_read(parsed: Pair<Rule>) -> BlisprResult {
     match parsed.as_rule() {
-        Rule::blispr | Rule::sexpr => {
-            let mut ret = lval_sexpr();
+        Rule::blispr => {
+            // a whole program is one or more expressions
+            let mut ret = lval_blispr();
             for child in parsed.into_inner() {
                 // here is where you skip stuff
                 if is_bracket_or_eoi(&child) {
@@ -35,6 +36,17 @@ fn lval_read(parsed: Pair<Rule>) -> BlisprResult {
             Ok(ret)
         }
         Rule::expr => lval_read(parsed.into_inner().next().unwrap()),
+        Rule::sexpr => {
+            let mut ret = lval_sexpr();
+            for child in parsed.into_inner() {
+                // here is where you skip stuff
+                if is_bracket_or_eoi(&child) {
+                    continue;
+                }
+                lval_add(&mut ret, &*lval_read(child)?)?;
+            }
+            Ok(ret)
+        }
         Rule::qexpr => {
             let mut ret = lval_qexpr();
             for child in parsed.into_inner() {

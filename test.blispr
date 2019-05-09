@@ -1,4 +1,4 @@
-def {x} 100
-def {y} 200
-def {a b} 5 6
-eval (cons (head {+ - * /}) (list a b x y))
+(def {x} 100)
+(def {y} 200)
+(def {a b} 5 6)
+(eval (cons (head {+ - * /}) (list a b x y)))

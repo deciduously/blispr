@@ -496,11 +496,26 @@ pub fn lval_call(e: &mut Lenv, f: Lval, args: &mut Lval) -> BlisprResult {
     }
 }
 
+// Given a slice of boxed Lvals, return a single Lval
+fn eval_cells(e: &mut Lenv, cells: &[Box<Lval>]) -> Box<Lval> {
+    cells.iter().fold(lval_sexpr(), |mut acc, c| {
+        // TODO actually handle error in the fold fn?
+        lval_add(&mut acc, &lval_eval(e, &mut c.clone()).unwrap()).unwrap();
+        acc
+    })
+}
+
 // Fully evaluate an `Lval`
 pub fn lval_eval(e: &mut Lenv, v: &mut Lval) -> BlisprResult {
     let child_count;
     let mut args_eval;
     match v {
+        Lval::Blispr(forms) => {
+            // If it's multiple, evaluate each and return the result of the last
+            let mut args_eval = eval_cells(e, forms);
+            let forms_len = args_eval.len()?;
+            return Ok(lval_pop(&mut args_eval, forms_len - 1)?);
+        }
         Lval::Sym(s) => {
             // If it's a symbol, perform an environment lookup
             let result = e.get(&s)?;

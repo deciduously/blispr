@@ -21,6 +21,7 @@ pub enum LvalFun {
 // The main type - all possible Blispr values
 #[derive(Debug, Clone, PartialEq)]
 pub enum Lval {
+    Blispr(LvalChildren),
     Fun(LvalFun),
     Num(i64),
     Sym(String),
@@ -46,7 +47,9 @@ impl Lval {
     }
     pub fn len(&self) -> Result<usize> {
         match *self {
-            Lval::Sexpr(ref children) | Lval::Qexpr(ref children) => Ok(children.len()),
+            Lval::Sexpr(ref children) | Lval::Qexpr(ref children) | Lval::Blispr(ref children) => {
+                Ok(children.len())
+            }
             _ => Err(BlisprError::NoChildren),
         }
     }
@@ -83,6 +86,7 @@ impl PartialEq for LvalFun {
 impl fmt::Display for Lval {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            Lval::Blispr(_cells) => write!(f, "<toplevel>"),
             Lval::Fun(lf) => match lf {
                 LvalFun::Builtin(name, _) => write!(f, "<builtin: {}>", name),
                 LvalFun::Lambda(_, formals, body) => write!(f, "(\\ {} {})", formals, body),
@@ -109,6 +113,10 @@ fn lval_expr_print(cell: &[Box<Lval>]) -> String {
 // Constructors
 // Each allocates a brand new boxed Lval
 // The recursive types start empty
+
+pub fn lval_blispr() -> Box<Lval> {
+    Box::new(Lval::Blispr(Vec::new()))
+}
 
 pub fn lval_builtin(f: LBuiltin, name: &str) -> Box<Lval> {
     Box::new(Lval::Fun(LvalFun::Builtin(name.to_string(), f)))
@@ -143,7 +151,9 @@ pub fn lval_qexpr() -> Box<Lval> {
 // Add lval x to lval::sexpr or lval::qexpr v
 pub fn lval_add(v: &mut Lval, x: &Lval) -> Result<()> {
     match *v {
-        Lval::Sexpr(ref mut children) | Lval::Qexpr(ref mut children) => {
+        Lval::Sexpr(ref mut children)
+        | Lval::Qexpr(ref mut children)
+        | Lval::Blispr(ref mut children) => {
             children.push(Box::new(x.clone()));
         }
         _ => return Err(BlisprError::NoChildren),
@@ -154,7 +164,9 @@ pub fn lval_add(v: &mut Lval, x: &Lval) -> Result<()> {
 // Extract single element of sexpr at index i
 pub fn lval_pop(v: &mut Lval, i: usize) -> BlisprResult {
     match *v {
-        Lval::Sexpr(ref mut children) | Lval::Qexpr(ref mut children) => {
+        Lval::Sexpr(ref mut children)
+        | Lval::Qexpr(ref mut children)
+        | Lval::Blispr(ref mut children) => {
             let ret = (&children[i]).clone();
             children.remove(i);
             Ok(ret)
