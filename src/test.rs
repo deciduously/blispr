@@ -4,9 +4,80 @@ use crate::{lenv::Lenv, lval::Lval, parse::eval_str};
 #[cfg(test)]
 use pretty_assertions::assert_eq;
 
-#[test]
-fn test_hello_world() {
-    let mut env = &mut Lenv::new(None, None);
+#[cfg(test)]
+fn test_blispr(test_str: &str, expected: Lval) {
+    assert_eq!(
+        *eval_str(&mut Lenv::new(None, None), test_str).unwrap(),
+        expected
+    )
+}
 
-    assert_eq!(*eval_str(&mut env, "(+ 1 2)").unwrap(), Lval::Num(3))
+#[test]
+fn test_add_two_numbers() {
+    test_blispr("(+ 1 2)", Lval::Num(3))
+}
+
+#[test]
+fn test_add_three_numbers() {
+    test_blispr("(+ 1 2 3)", Lval::Num(6))
+}
+
+#[test]
+fn test_head() {
+    test_blispr("(head {1 2 3})", Lval::Num(1))
+}
+
+#[test]
+fn test_tail() {
+    test_blispr(
+        "(tail {1 2 3})",
+        Lval::Qexpr(vec![Box::new(Lval::Num(2)), Box::new(Lval::Num(3))]),
+    )
+}
+
+#[test]
+fn test_cons() {
+    test_blispr(
+        "(cons 3 {4 5})",
+        Lval::Qexpr(vec![
+            Box::new(Lval::Num(3)),
+            Box::new(Lval::Num(4)),
+            Box::new(Lval::Num(5)),
+        ]),
+    )
+}
+
+#[test]
+fn test_len() {
+    test_blispr("(len {1 2 3})", Lval::Num(3))
+}
+
+#[test]
+fn test_list() {
+    test_blispr(
+        "(list 1 2 3)",
+        Lval::Qexpr(vec![
+            Box::new(Lval::Num(1)),
+            Box::new(Lval::Num(2)),
+            Box::new(Lval::Num(3)),
+        ]),
+    )
+}
+
+#[test]
+fn test_init() {
+    test_blispr(
+        "(init {1 2 3})",
+        Lval::Qexpr(vec![Box::new(Lval::Num(1)), Box::new(Lval::Num(2))]),
+    )
+}
+
+#[test]
+fn test_eval() {
+    test_blispr("(eval {+ 1 2})", Lval::Num(3))
+}
+
+#[test]
+fn test_unary_negation() {
+    test_blispr("(- 3)", Lval::Num(-3))
 }
