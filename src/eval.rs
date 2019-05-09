@@ -6,6 +6,7 @@ use crate::{
     },
 };
 use hashbrown::HashMap;
+use log::debug;
 use std::ops::{Add, Div, Mul, Rem, Sub};
 
 // macro to shorten code for applying a binary operation to two Lvals

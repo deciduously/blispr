@@ -1,7 +1,5 @@
 #[macro_use]
 extern crate pest_derive;
-#[macro_use]
-extern crate log;
 
 mod error;
 mod eval;
@@ -9,11 +7,15 @@ mod lenv;
 mod lval;
 mod parse;
 
+#[cfg(test)]
+mod test;
+
 use crate::{
     error::{BlisprResult, Result},
     lenv::Lenv,
     parse::eval_str,
 };
+use log::{debug, info, warn};
 use rustyline::{error::ReadlineError, Editor};
 use std::{
     env::set_var,

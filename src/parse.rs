@@ -4,6 +4,7 @@ use crate::{
     lenv::Lenv,
     lval::{lval_add, lval_blispr, lval_num, lval_qexpr, lval_sexpr, lval_sym, Lval},
 };
+use log::debug;
 use pest::{iterators::Pair, Parser};
 
 #[cfg(debug_assertions)]
