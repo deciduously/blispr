@@ -81,3 +81,31 @@ fn test_eval() {
 fn test_unary_negation() {
     test_blispr("(- 3)", Lval::Num(-3))
 }
+
+#[test]
+fn test_two_forms() {
+    test_blispr("(+ 1 2)(+ 2 3)", Lval::Num(5))
+}
+
+#[test]
+fn test_def() {
+    test_blispr("(def {x} 12)x", Lval::Num(12))
+}
+
+#[test]
+fn test_lambda() {
+    test_blispr("((\\ {x y} {+ x y}) 2 3)", Lval::Num(5))
+}
+
+#[test]
+fn test_def_lambda() {
+    test_blispr("(def {func} (\\ {x y} {+ x y}))(func 5 6)", Lval::Num(11))
+}
+
+#[test]
+fn test_partial_application() {
+    test_blispr(
+        "(def {func} (\\ {x y} {+ x y}))(def {func-2} (func 2))(func-2 7)",
+        Lval::Num(9),
+    )
+}
