@@ -36,20 +36,16 @@ Run with no arguments for the repl, or pass an input file with `-i` or `--input`
 test.blispr:
 
 ```
-def {x} 100
-def {y} 200
-def {a b} 5 6
-eval (cons (head {+ - * /}) (list a b x y))
+(def {x} 100)
+(def {y} 200)
+(def {a b} 5 6)
+(eval (cons (head {+ - * /}) (list a b x y)))
 ```
 
 ```
-$ cargo run -- -i test.blispr
-   Compiling blispr v0.0.1 (/home/ben/code/blispr)
-    Finished dev [unoptimized + debuginfo] target(s) in 6.83s
+$ cargo run -- -i test.blispr 
+    Finished dev [unoptimized + debuginfo] target(s) in 0.04s
      Running `target/debug/blispr -i test.blispr`
-()
-()
-()
 311
 ```
 
