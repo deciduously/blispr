@@ -23,6 +23,76 @@ fn test_add_three_numbers() {
 }
 
 #[test]
+fn test_sub_two_numbers() {
+    test_blispr("(- 1 2)", Lval::Num(-1))
+}
+
+#[test]
+fn test_sub_three_numbers() {
+    test_blispr("(- 1 2 3)", Lval::Num(-4))
+}
+
+#[test]
+fn test_mul_two_numbers() {
+    test_blispr("(* 2 3)", Lval::Num(6))
+}
+
+#[test]
+fn test_mul_three_numbers() {
+    test_blispr("(* 2 3 4)", Lval::Num(24))
+}
+
+#[test]
+fn test_div_two_numbers() {
+    test_blispr("(/ 4 2)", Lval::Num(2))
+}
+
+#[test]
+fn test_div_three_numbers() {
+    test_blispr("(/ 16 4 2)", Lval::Num(2))
+}
+
+#[test]
+fn test_pow_two_numbers() {
+    test_blispr("(^ 2 4)", Lval::Num(16))
+}
+
+#[test]
+fn test_pow_three_numbers() {
+    test_blispr("(^ 2 4 4)", Lval::Num(65536))
+}
+
+#[test]
+fn test_rem_two_numbers() {
+    test_blispr("(% 23 5)", Lval::Num(3))
+}
+
+#[test]
+fn test_rem_three_numbers() {
+    test_blispr("(% 23 5 2)", Lval::Num(1))
+}
+
+#[test]
+fn test_max_two_numbers() {
+    test_blispr("(max 1 2)", Lval::Num(2))
+}
+
+#[test]
+fn test_max_three_numbers() {
+    test_blispr("(max 1 3 2)", Lval::Num(3))
+}
+
+#[test]
+fn test_min_two_numbers() {
+    test_blispr("(min 1 2)", Lval::Num(1))
+}
+
+#[test]
+fn test_min_three_numbers() {
+    test_blispr("(min 1 3 2)", Lval::Num(1))
+}
+
+#[test]
 fn test_head() {
     test_blispr("(head {1 2 3})", Lval::Num(1))
 }
@@ -65,6 +135,19 @@ fn test_list() {
 }
 
 #[test]
+fn test_join() {
+    test_blispr(
+        "(join {1 2} {2 3})",
+        Lval::Qexpr(vec![
+            Box::new(Lval::Num(1)),
+            Box::new(Lval::Num(2)),
+            Box::new(Lval::Num(2)),
+            Box::new(Lval::Num(3)),
+        ]),
+    )
+}
+
+#[test]
 fn test_init() {
     test_blispr(
         "(init {1 2 3})",
@@ -93,6 +176,11 @@ fn test_def() {
 }
 
 #[test]
+fn test_def_multi() {
+    test_blispr("(def {a b} 1 2)(+ a b)", Lval::Num(3))
+}
+
+#[test]
 fn test_lambda() {
     test_blispr("((\\ {x y} {+ x y}) 2 3)", Lval::Num(5))
 }
@@ -108,4 +196,10 @@ fn test_partial_application() {
         "(def {func} (\\ {x y} {+ x y}))(def {func-2} (func 2))(func-2 7)",
         Lval::Num(9),
     )
+}
+
+#[test]
+fn test_input_file() {
+    let file_str = include_str!("../test.blispr");
+    test_blispr(file_str, Lval::Num(311))
 }
