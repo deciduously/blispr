@@ -9,7 +9,11 @@ mod lenv;
 mod lval;
 mod parse;
 
-use crate::{error::Result, lenv::Lenv, parse::eval_str};
+use crate::{
+    error::{BlisprResult, Result},
+    lenv::Lenv,
+    parse::eval_str,
+};
 use rustyline::{error::ReadlineError, Editor};
 use std::{
     env::set_var,
@@ -31,7 +35,14 @@ struct Opt {
     input: Option<PathBuf>,
 }
 
-pub fn repl(e: &mut Lenv) -> Result<()> {
+fn print_eval_result(v: BlisprResult) {
+    match v {
+        Ok(res) => println!("{}", res),
+        Err(e) => eprintln!("Error: {}", e),
+    }
+}
+
+fn repl(e: &mut Lenv) -> Result<()> {
     println!("Blispr v0.0.1");
     println!("Use exit(), Ctrl-C, or Ctrl-D to exit prompt");
     debug!("Debug mode enabled");
@@ -49,9 +60,7 @@ pub fn repl(e: &mut Lenv) -> Result<()> {
                 rl.add_history_entry(line.as_ref());
                 // if eval_str is an error, we want to catch it here, inside the loop, but still show the next prompt
                 // just using ? would bubble it up to main()
-                if let Err(err) = eval_str(e, &line) {
-                    eprintln!("{}", err);
-                }
+                print_eval_result(eval_str(e, &line));
             }
             Err(ReadlineError::Interrupted) => {
                 info!("CTRL-C");
@@ -88,7 +97,7 @@ fn run(opt: Opt) -> Result<()> {
         let mut bfr = BufReader::new(file);
         let mut program = String::new();
         bfr.read_to_string(&mut program)?;
-        eval_str(global_env, &program)?
+        print_eval_result(eval_str(global_env, &program));
     } else {
         repl(global_env)?
     }

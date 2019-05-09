@@ -2,7 +2,7 @@ use crate::{
     error::{BlisprResult, Result},
     eval::lval_eval,
     lenv::Lenv,
-    lval::{lval_add, lval_blispr, lval_num, lval_qexpr, lval_sexpr, lval_sym},
+    lval::{lval_add, lval_blispr, lval_num, lval_qexpr, lval_sexpr, lval_sym, Lval},
 };
 use pest::{iterators::Pair, Parser};
 
@@ -21,40 +21,33 @@ fn is_bracket_or_eoi(parsed: &Pair<Rule>) -> bool {
     c == "(" || c == ")" || c == "{" || c == "}"
 }
 
+// Read a rule with children into the given containing Lval
+fn read_to_lval(mut v: &mut Lval, parsed: Pair<Rule>) -> Result<()> {
+    for child in parsed.into_inner() {
+        if is_bracket_or_eoi(&child) {
+            continue;
+        }
+        lval_add(&mut v, &*lval_read(child)?)?;
+    }
+    Ok(())
+}
+
 fn lval_read(parsed: Pair<Rule>) -> BlisprResult {
     match parsed.as_rule() {
         Rule::blispr => {
-            // a whole program is one or more expressions
             let mut ret = lval_blispr();
-            for child in parsed.into_inner() {
-                // here is where you skip stuff
-                if is_bracket_or_eoi(&child) {
-                    continue;
-                }
-                lval_add(&mut ret, &*lval_read(child)?)?;
-            }
+            read_to_lval(&mut ret, parsed)?;
             Ok(ret)
         }
         Rule::expr => lval_read(parsed.into_inner().next().unwrap()),
         Rule::sexpr => {
             let mut ret = lval_sexpr();
-            for child in parsed.into_inner() {
-                // here is where you skip stuff
-                if is_bracket_or_eoi(&child) {
-                    continue;
-                }
-                lval_add(&mut ret, &*lval_read(child)?)?;
-            }
+            read_to_lval(&mut ret, parsed)?;
             Ok(ret)
         }
         Rule::qexpr => {
             let mut ret = lval_qexpr();
-            for child in parsed.into_inner() {
-                if is_bracket_or_eoi(&child) {
-                    continue;
-                }
-                lval_add(&mut ret, &*lval_read(child)?)?;
-            }
+            read_to_lval(&mut ret, parsed)?;
             Ok(ret)
         }
         Rule::num => Ok(lval_num(parsed.as_str().parse::<i64>()?)),
@@ -63,11 +56,10 @@ fn lval_read(parsed: Pair<Rule>) -> BlisprResult {
     }
 }
 
-pub fn eval_str(e: &mut Lenv, s: &str) -> Result<()> {
+pub fn eval_str(e: &mut Lenv, s: &str) -> BlisprResult {
     let parsed = BlisprParser::parse(Rule::blispr, s)?.next().unwrap();
     debug!("{}", parsed);
     let mut lval_ptr = lval_read(parsed)?;
     debug!("Parsed: {:?}", *lval_ptr);
-    println!("{}", lval_eval(e, &mut *lval_ptr)?);
-    Ok(())
+    lval_eval(e, &mut *lval_ptr)
 }

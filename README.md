@@ -19,14 +19,34 @@ $ cargo run
      Running `target/debug/blispr`
 Blispr v0.0.1
 Use exit(), Ctrl-C, or Ctrl-D to exit prompt
-blispr> def {x} 100
+blispr> (def {x} 100)
 ()
-blispr> def {y} 200
+blispr> (def {y} 200)
 ()
-blispr> def {a /* comments look like this */ b} 5 6
+blispr> (def {a /* comments look like this */ b} 5 6)
 ()
-blispr> eval (cons (head {+ - * /}) (list a b x y))
+blispr> (eval (cons (head {+ - * /}) (list a b x y)))
 311
+```
+
+Newlines are whitespace as well.  The surrounding parens are required - a valid blispr program is one or more forms.  Omitting them will result in only the final form getting returned:
+
+```
+blispr> + 4 5
+5
+blispr> (+ 4 5)
+9
+```
+
+The first attempt was evaluated as follows:
+
+```
+blispr> +
+<builtin: +>
+blispr> 4
+4
+blispr> 5
+5
 ```
 
 It uses [`rustyline`](https://github.com/kkawakam/rustyline) as a readline alternative which will save history to `./.blispr-history.txt`.  See that repo for all supported options.
