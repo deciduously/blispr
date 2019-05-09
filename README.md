@@ -80,7 +80,7 @@ You can pass `-d` or `--debug` at runtime (`cargo run -- -d` or `blispr -d`) to 
 Blispr v0.0.1
 Use exit(), Ctrl-C, or Ctrl-D to exit prompt
  DEBUG blispr::parse > Debug mode enabled
-blispr> eval (list + 1 2)
+blispr> (eval (list + 1 2))
  DEBUG blispr::parse > blispr(0, 17, [expr(0, 4, [symbol(0, 4)]), expr(5, 17, [sexpr(5, 17, [expr(6, 10, [symbol(6, 10)]), expr(11, 12, [symbol(11, 12)]), expr(13, 14, [num(13, 14)]), expr(15, 16, [num(15, 16)])])]), EOI(17, 17)])
  DEBUG blispr::parse > Parsed: Sexpr([Sym("eval"), Sexpr([Sym("list"), Sym("+"), Num(1), Num(2)])])
  DEBUG blispr::eval  > lval_eval: Sexpr, evaluating children
@@ -110,11 +110,11 @@ blispr> eval (list + 1 2)
 * Utilties: `printenv(), exit()` (must be passed with an argument - an empty S-Expression works):
 
 ```
-blispr> def {a b c d e f g h i j k l m n o p q r s t u v w x y z} 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
+blispr> _def {a b c d e f g h i j k l m n o p q r s t u v w x y z} 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26)
 ()
-blispr> def {func} (\ {a b} {+ a b})
+blispr> (def {func} (\ {a b} {+ a b}))
 ()
-blispr> printenv()
+blispr> (printenv())
 {g:7 m:13 o:15 head:<builtin: head> *:<builtin: *> f:6 list:<builtin: list> p:16 printenv:<builtin: printenv> d:4 tail:<builtin: tail> ^:<builtin: ^> cons:<builtin: cons> j:10 sub:<builtin: sub> q:17 init:<builtin: init> s:19 +:<builtin: +> %:<builtin: %> t:20 /:<builtin: /> v:22 w:23 y:25 z:26 func:(\ {a b} {+ a b}) mul:<builtin: mul> join:<builtin: join> exit:<builtin: exit> rem:<builtin: rem> add:<builtin: add> def:<builtin: def> pow:<builtin: pow> h:8 div:<builtin: div> \:<builtin: \> max:<builtin: max> b:2 l:12 n:14 r:18 x:24 k:11 e:5 u:21 eval:<builtin: eval> -:<builtin: -> min:<builtin: min> c:3 i:9 len:<builtin: len> a:1}
 blispr> exit()
 Goodbye!
@@ -125,42 +125,42 @@ $
 * List operations:
 
 ```
-blispr> list 1 2 3
+blispr> (list 1 2 3)
 {1 2 3}
-blispr> eval {+ 1 2}
+blispr> (eval {+ 1 2})
 3
-blispr> join {1 2} {3 4}
+blispr> (join {1 2} {3 4})
 {1 2 3 4}
-blispr> len {1 2 3 4 5}
+blispr> (len {1 2 3 4 5})
 5
-blispr> head {1 2 3}
+blispr> (head {1 2 3})
 1
-blispr> tail {1 2 3}
+blispr> (tail {1 2 3})
 {2 3}
-blispr> cons 3 {4 5}
+blispr> (cons 3 {4 5})
 {3 4 5}
-blispr> init {1 2 3 4}
+blispr> (init {1 2 3 4})
 {1 2 3}
 ```
 
 * Variable defintions - new assignments to the same binding will overwrite old ones, there's just one big global scope:
 
 ```
-blispr> def {x} 100
+blispr> (def {x} 100)
 ()
-blispr> def {y} 200
+blispr> (def {y} 200)
 ()
-blispr> def {a b} 5 6
+blispr> (def {a b} 5 6)
 ()
-blispr> def {arglist} {a b x y}
+blispr> (def {arglist} {a b x y})
 ()
 blispr> arglist
 {a b x y}
-blispr> + a b x y
+blispr> (+ a b x y)
 311
-blispr> def arglist 1 2 3 4
+blispr> (def arglist 1 2 3 4)
 ()
-blispr> list a b x y
+blispr> (list a b x y)
 {1 2 3 4}
 ```
 
@@ -169,13 +169,13 @@ blispr> list a b x y
 Now with partial application!
 
 ```
-blispr> def {embiggen} (\ {x y} {^ (* x y) (+ x y)})
+blispr> (def {embiggen} (\ {x y} {^ (* x y) (+ x y)}))
 ()
-blispr> embiggen 2 3
+blispr> (embiggen 2 3)
 7776
-blispr> def {real-big} (embiggen 4)
+blispr> (def {real-big} (embiggen 4))
 ()
-blispr> real-big 2
+blispr> (real-big 2)
 262144
 blispr> 
 ```
