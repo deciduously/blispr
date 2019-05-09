@@ -1,5 +1,7 @@
 # blispr
 
+[![Build Status](https://travis-ci.org/deciduously/blispr.svg?branch=master)](https://travis-ci.org/deciduously/blispr)
+
 It's [blisp](https://github.com/deciduously/blisp), but in Rust!   Blispr.
 
 This is a rewrite of the Lisp built in the book [Build Your Own Lisp](http://www.buildyourownlisp.com/) in Rust.  The end product is superficially similar, but there are some places where I have either by choice or necessity implemented something differently - different enough that I can't accurately call this a port of that tutorial.  It's just the world's latest unnecessary-est lisp!
