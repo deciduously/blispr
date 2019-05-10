@@ -143,7 +143,7 @@ blispr> (init {1 2 3 4})
 {1 2 3}
 ```
 
-* Variable defintions - new assignments to the same binding will overwrite old ones, there's just one big global scope:
+* Variable defintions - new assignments to the same binding will overwrite old ones:
 
 ```
 blispr> (def {x} 100)
