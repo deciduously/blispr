@@ -11,6 +11,7 @@ use std::{
 pub enum BlisprError {
     DivideByZero,
     EmptyList,
+    FunctionFormat,
     NoChildren,
     NotANumber,
     NumArguments(usize, usize),
@@ -29,6 +30,10 @@ impl fmt::Display for BlisprError {
         match self {
             DivideByZero => write!(f, "Divide by zero"),
             EmptyList => write!(f, "Empty list"),
+            FunctionFormat => write!(
+                f,
+                "Function format invalid.  Symbol '&' not followed by a single symbol"
+            ),
             NoChildren => write!(f, "Lval has no children"),
             NotANumber => write!(f, "NaN"),
             NumArguments(expected, received) => write!(

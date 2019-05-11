@@ -455,6 +455,25 @@ pub fn lval_call(e: &mut Lenv, f: Lval, args: &mut Lval) -> BlisprResult {
                         // grab first symbol from formals
                         let sym = lval_pop(&mut formals, 0)?;
 
+                        // special case to handle '&'
+                        if &sym.as_string()? == "&" {
+                            // make sure there's one symbol left
+                            if formals.len()? != 1 {
+                                return Err(BlisprError::FunctionFormat);
+                            }
+
+                            // next formal should be found to remaining args
+                            let next_sym = lval_pop(&mut formals, 0)?;
+                            let arglist = builtin_list(args)?;
+                            let curr = new_env
+                                .entry(next_sym.as_string()?)
+                                .or_insert(arglist.clone());
+                            if *curr != arglist {
+                                *curr = arglist.clone();
+                            }
+                            break;
+                        }
+
                         // grab next argument from list
                         let val = lval_pop(args, 0)?;
 
@@ -483,7 +502,6 @@ pub fn lval_call(e: &mut Lenv, f: Lval, args: &mut Lval) -> BlisprResult {
                     } else {
                         // Otherwise return partially evaluated function
                         // build a new lval for it
-                        // TODO this shouldnt carry the whole en,v just the new paritally applied ones!
                         debug!("Returning partially applied lambda");
                         Ok(lval_lambda(new_env, formals.clone(), body.clone()))
                     }
@@ -497,12 +515,17 @@ pub fn lval_call(e: &mut Lenv, f: Lval, args: &mut Lval) -> BlisprResult {
     }
 }
 
-// Given a slice of boxed Lvals, return a single Lval
-fn eval_cells(e: &mut Lenv, cells: &[Box<Lval>]) -> Box<Lval> {
-    cells.iter().fold(lval_sexpr(), |mut acc, c| {
-        // TODO actually handle error in the fold fn?
-        lval_add(&mut acc, &lval_eval(e, &mut c.clone()).unwrap()).unwrap();
-        acc
+// Given a slice of boxed Lvals, return a single evaluated sexpr
+fn eval_cells(e: &mut Lenv, cells: &[Box<Lval>]) -> BlisprResult {
+    cells.iter().fold(Ok(lval_sexpr()), |acc, c| {
+        match acc {
+            Ok(mut lval) => {
+                lval_add(&mut lval, &*lval_eval(e, &mut c.clone())?)?;
+                Ok(lval)
+            }
+            // it's just a Result so we can bubble errors out of the fold
+            Err(_) => unreachable!(),
+        }
     })
 }
 
@@ -513,7 +536,7 @@ pub fn lval_eval(e: &mut Lenv, v: &mut Lval) -> BlisprResult {
     match v {
         Lval::Blispr(forms) => {
             // If it's multiple, evaluate each and return the result of the last
-            let mut args_eval = eval_cells(e, forms);
+            args_eval = eval_cells(e, forms)?;
             let forms_len = args_eval.len()?;
             return Ok(lval_pop(&mut args_eval, forms_len - 1)?);
         }
@@ -533,11 +556,7 @@ pub fn lval_eval(e: &mut Lenv, v: &mut Lval) -> BlisprResult {
             debug!("lval_eval: Sexpr, evaluating children");
             // grab the length and evaluate the children
             child_count = cells.len();
-            args_eval = cells.iter().fold(lval_sexpr(), |mut acc, c| {
-                // TODO actually handle error in the fold fn?
-                lval_add(&mut acc, &lval_eval(e, &mut c.clone()).unwrap()).unwrap();
-                acc
-            });
+            args_eval = eval_cells(e, cells)?;
         }
         // if it's not a sexpr, we're done, return as is
         _ => {
