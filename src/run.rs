@@ -35,9 +35,9 @@ fn repl(e: &mut Lenv) -> Result<()> {
 
         match input {
             Ok(line) => {
-                rl.add_history_entry(line.as_ref());
-                // if eval_str is an error, we want to catch it here, inside the loop, but still show the next prompt
-                // just using ? would bubble it up to main()
+                rl.add_history_entry(&line); // .as_ref()
+                                             // if eval_str is an error, we want to catch it here, inside the loop, but still show the next prompt
+                                             // just using ? would bubble it up to main()
                 print_eval_result(eval_str(e, &line));
             }
             Err(ReadlineError::Interrupted) => {
