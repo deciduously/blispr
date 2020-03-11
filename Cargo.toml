@@ -4,11 +4,10 @@ edition = "2018"
 name = "blispr"
 version = "0.0.1"
 [dependencies]
-hashbrown = "0.6"
 log = "0.4"
 pest = "2.1"
 pest_derive = "2.1"
-pretty_env_logger = "0.3"
+pretty_env_logger = "0.4"
 rustyline = "6.0"
 structopt = "0.3"
 [dev-dependencies]

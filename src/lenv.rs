@@ -6,8 +6,7 @@ use crate::{
     eval::*,
     lval::{lval_add, lval_builtin, lval_qexpr, lval_sym, LBuiltin, Lval},
 };
-use hashbrown::HashMap;
-use std::fmt;
+use std::{collections::HashMap, fmt};
 
 pub type LEnvLookup = HashMap<String, Box<Lval>>;
 

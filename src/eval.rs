@@ -5,9 +5,8 @@ use crate::{
         lval_add, lval_join, lval_lambda, lval_num, lval_pop, lval_qexpr, lval_sexpr, Lval, LvalFun,
     },
 };
-use hashbrown::HashMap;
 use log::debug;
-use std::ops::{Add, Div, Mul, Rem, Sub};
+use std::{collections::HashMap, ops::{Add, Div, Mul, Rem, Sub}};
 
 // macro to shorten code for applying a binary operation to two Lvals
 macro_rules! apply_binop {

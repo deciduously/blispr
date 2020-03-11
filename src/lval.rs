@@ -1,6 +1,5 @@
 use crate::error::{BlisprError, BlisprResult, Result};
-use hashbrown::HashMap;
-use std::fmt;
+use std::{collections::HashMap, fmt};
 
 // The recursive types hold their children in one of these bad boys
 // TODO Should this be a VecDeque or a LinkedList instead?
