@@ -1,3 +1,8 @@
+#![warn(clippy::pedantic)]
+
+use clap::Parser;
+use std::{path::PathBuf, process::exit};
+
 #[macro_use]
 extern crate pest_derive;
 
@@ -12,23 +17,20 @@ mod run;
 mod test;
 
 use crate::run::run;
-use std::{path::PathBuf, process::exit};
-use structopt::StructOpt;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "blispr")]
+#[derive(clap::Parser)]
 pub struct Opt {
-    /// debug mode
-    #[structopt(short = "d", long = "debug")]
-    debug: bool,
-    /// input file
-    #[structopt(short = "i", long = "input")]
-    input: Option<PathBuf>,
+	/// debug mode
+	#[clap(short, long)]
+	debug: bool,
+	/// input file
+	#[clap(short, long)]
+	input: Option<PathBuf>,
 }
 
 fn main() {
-    if let Err(e) = run(Opt::from_args()) {
-        eprintln!("Error: {}", e);
-        exit(1);
-    }
+	if let Err(e) = run(Opt::parse()) {
+		eprintln!("Error: {}", e);
+		exit(1);
+	}
 }
