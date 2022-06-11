@@ -21,7 +21,7 @@ fn print_eval_result(v: BlisprResult) {
 }
 
 fn repl(e: &mut Lenv) -> Result<()> {
-	println!("Blispr v0.0.1");
+	println!("Blispr v{}", env!("CARGO_PKG_VERSION"));
 	println!("Use exit(), Ctrl-C, or Ctrl-D to exit prompt");
 	debug!("Debug mode enabled");
 
