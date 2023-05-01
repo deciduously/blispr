@@ -30,7 +30,7 @@ pub struct Opt {
 
 fn main() {
 	if let Err(e) = run(Opt::parse()) {
-		eprintln!("Error: {}", e);
+		eprintln!("Error: {e}");
 		exit(1);
 	}
 }

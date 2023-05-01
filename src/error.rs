@@ -41,17 +41,15 @@ impl fmt::Display for Error {
 			NotANumber => write!(f, "NaN"),
 			NumArguments(expected, received) => write!(
 				f,
-				"Wrong number of arguments: expected {}, received {}",
-				expected, received
+				"Wrong number of arguments: expected {expected}, received {received}"
 			),
-			Parse(s) => write!(f, "Parse error: {}", s),
-			Readline(s) => write!(f, "Readline error: {}", s),
+			Parse(s) => write!(f, "Parse error: {s}"),
+			Readline(s) => write!(f, "Readline error: {s}"),
 			WrongType(expected, received) => write!(
 				f,
-				"Wrong type: expected {}, received {}",
-				expected, received
+				"Wrong type: expected {expected}, received {received}"
 			),
-			UnknownFunction(func_name) => write!(f, "Unknown function {}", func_name),
+			UnknownFunction(func_name) => write!(f, "Unknown function {func_name}"),
 		}
 	}
 }
@@ -61,7 +59,7 @@ where
 	T: Debug + Ord + Copy + Hash,
 {
 	fn from(error: pest::error::Error<T>) -> Self {
-		Error::Parse(format!("{}", error))
+		Error::Parse(format!("{error}"))
 	}
 }
 

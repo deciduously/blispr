@@ -38,7 +38,7 @@ impl Lval {
 	pub fn as_string(&self) -> Result<String> {
 		match self {
 			Lval::Sym(s) => Ok(s.to_string()),
-			_ => Err(Error::WrongType("symbol".to_string(), format!("{}", self))),
+			_ => Err(Error::WrongType("symbol".to_string(), format!("{self}"))),
 		}
 	}
 	pub fn len(&self) -> Result<usize> {
@@ -54,9 +54,9 @@ impl Lval {
 impl fmt::Debug for Func {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self {
-			Func::Builtin(name, _) => write!(f, "Builtin({})", name),
+			Func::Builtin(name, _) => write!(f, "Builtin({name})"),
 			Func::Lambda(env, formals, body) => {
-				write!(f, "Lambda({{{:?}}},{{{}}},{{{}}})", env, formals, body)
+				write!(f, "Lambda({{{env:?}}},{{{formals}}},{{{body}}})")
 			},
 		}
 	}
@@ -84,11 +84,11 @@ impl fmt::Display for Lval {
 		match self {
 			Lval::Blispr(_cells) => write!(f, "<toplevel>"),
 			Lval::Fun(lf) => match lf {
-				Func::Builtin(name, _) => write!(f, "<builtin: {}>", name),
-				Func::Lambda(_, formals, body) => write!(f, "(\\ {} {})", formals, body),
+				Func::Builtin(name, _) => write!(f, "<builtin: {name}>"),
+				Func::Lambda(_, formals, body) => write!(f, "(\\ {formals} {body})"),
 			},
-			Lval::Num(n) => write!(f, "{}", n),
-			Lval::Sym(s) => write!(f, "{}", s),
+			Lval::Num(n) => write!(f, "{n}"),
+			Lval::Sym(s) => write!(f, "{s}"),
 			Lval::Sexpr(cell) => write!(f, "({})", lval_expr_print(cell)),
 			Lval::Qexpr(cell) => write!(f, "{{{}}}", lval_expr_print(cell)),
 		}
@@ -159,7 +159,7 @@ pub fn pop(v: &mut Lval, i: usize) -> BlisprResult {
 		Lval::Sexpr(ref mut children)
 		| Lval::Qexpr(ref mut children)
 		| Lval::Blispr(ref mut children) => {
-			let ret = (&children[i]).clone();
+			let ret = children[i].clone();
 			children.remove(i);
 			Ok(ret)
 		},

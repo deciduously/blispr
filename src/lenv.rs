@@ -111,7 +111,7 @@ impl<'a> Lenv<'a> {
 	pub fn list_all(&self) -> BlisprResult {
 		let mut ret = qexpr();
 		for (k, v) in &self.lookup {
-			add(&mut ret, &sym(&format!("{}:{}", k, v)))?;
+			add(&mut ret, &sym(&format!("{k}:{v}")))?;
 		}
 		Ok(ret)
 	}

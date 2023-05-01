@@ -171,7 +171,7 @@ fn builtin_var(e: &mut Lenv, a: &mut Lval, func: &str) -> BlisprResult {
 				Err(Error::NumArguments(names_len, vals_len))
 			}
 		},
-		_ => Err(Error::WrongType("qexpr".to_string(), format!("{:?}", args))),
+		_ => Err(Error::WrongType("qexpr".to_string(), format!("{args:?}"))),
 	}
 }
 
@@ -212,7 +212,7 @@ pub fn builtin_cons(v: &mut Lval) -> BlisprResult {
 			}
 			Ok(ret)
 		},
-		_ => Err(Error::WrongType("qexpr".to_string(), format!("{:?}", v))),
+		_ => Err(Error::WrongType("qexpr".to_string(), format!("{v:?}"))),
 	}
 }
 
@@ -261,7 +261,7 @@ pub fn builtin_head(v: &mut Lval) -> BlisprResult {
 		},
 		_ => Err(Error::WrongType(
 			"qexpr".to_string(),
-			format!("{:?}", qexpr),
+			format!("{qexpr:?}"),
 		)),
 	}
 }
@@ -278,7 +278,7 @@ pub fn builtin_init(v: &mut Lval) -> BlisprResult {
 	} else {
 		Err(Error::WrongType(
 			"qexpr".to_string(),
-			format!("{:?}", maybe_qexpr),
+			format!("{maybe_qexpr:?}"),
 		))
 	}
 }
@@ -292,7 +292,7 @@ pub fn builtin_join(v: &mut Lval) -> BlisprResult {
 			Lval::Qexpr(_) => {
 				join(&mut ret, next)?;
 			},
-			_ => return Err(Error::WrongType("qexpr".to_string(), format!("{:?}", next))),
+			_ => return Err(Error::WrongType("qexpr".to_string(), format!("{next:?}"))),
 		}
 	}
 	Ok(ret)
@@ -316,7 +316,7 @@ pub fn builtin_lambda(v: &mut Lval) -> BlisprResult {
 				if cell.as_string().is_err() {
 					return Err(Error::WrongType(
 						"Symbol".to_string(),
-						format!("{:?}", cell),
+						format!("{cell:?}"),
 					));
 				}
 			}
@@ -324,13 +324,13 @@ pub fn builtin_lambda(v: &mut Lval) -> BlisprResult {
 				Lval::Qexpr(_) => Ok(lambda(HashMap::new(), formals_ret, body)),
 				_ => Err(Error::WrongType(
 					"Q-Expression".to_string(),
-					format!("{:?}", body),
+					format!("{body:?}"),
 				)),
 			}
 		},
 		_ => Err(Error::WrongType(
 			"Q-Expression".to_string(),
-			format!("{:?}", formals),
+			format!("{formals:?}"),
 		)),
 	}
 }
@@ -358,12 +358,12 @@ pub fn builtin_len(v: &mut Lval) -> BlisprResult {
 			let qexpr = pop(v, 0)?;
 			match *qexpr {
 				Lval::Qexpr(_) => {
-					debug!("Returning length of {:?}", qexpr);
+					debug!("Returning length of {qexpr:?}");
 					Ok(num(qexpr.len()? as i64))
 				},
 				_ => Err(Error::WrongType(
 					"qexpr".to_string(),
-					format!("{:?}", qexpr),
+					format!("{qexpr:?}"),
 				)),
 			}
 		},
@@ -397,7 +397,7 @@ pub fn builtin_tail(v: &mut Lval) -> BlisprResult {
 	} else {
 		Err(Error::WrongType(
 			"qexpr".to_string(),
-			format!("{:?}", maybe_qexpr),
+			format!("{maybe_qexpr:?}"),
 		))
 	}
 }
@@ -489,12 +489,12 @@ pub fn lval_call(e: &mut Lenv, f: Lval, args: &mut Lval) -> BlisprResult {
 						// Otherwise return partially evaluated function
 						// build a new lval for it
 						debug!("Returning partially applied lambda");
-						Ok(lambda(new_env, formals.clone(), body.clone()))
+						Ok(lambda(new_env, formals, body))
 					}
 				},
 			}
 		},
-		_ => Err(Error::WrongType("Function".to_string(), format!("{:?}", f))),
+		_ => Err(Error::WrongType("Function".to_string(), format!("{f:?}"))),
 	}
 }
 
@@ -561,6 +561,6 @@ pub fn lval_eval(e: &mut Lenv, v: &mut Lval) -> BlisprResult {
 		// lval_call will handle typechecking fp
 		let fp = pop(&mut args_eval, 0)?;
 		debug!("Calling function {:?} on {:?}", fp, v);
-		lval_call(e, *fp, &mut *args_eval)
+		lval_call(e, *fp, &mut args_eval)
 	}
 }

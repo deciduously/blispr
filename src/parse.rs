@@ -62,5 +62,5 @@ pub fn eval_str(e: &mut Lenv, s: &str) -> BlisprResult {
 	debug!("{}", parsed);
 	let mut lval_ptr = lval_read(parsed)?;
 	debug!("Parsed: {:?}", *lval_ptr);
-	lval_eval(e, &mut *lval_ptr)
+	lval_eval(e, &mut lval_ptr)
 }

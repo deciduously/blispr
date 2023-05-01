@@ -5,7 +5,7 @@ use crate::{
 	Opt,
 };
 use log::{debug, info, warn};
-use rustyline::{error::ReadlineError, Editor};
+use rustyline::{error::ReadlineError, DefaultEditor};
 use std::{
 	env::set_var,
 	fs::File,
@@ -15,8 +15,8 @@ use std::{
 
 fn print_eval_result(v: BlisprResult) {
 	match v {
-		Ok(res) => println!("{}", res),
-		Err(e) => eprintln!("Error: {}", e),
+		Ok(res) => println!("{res}"),
+		Err(e) => eprintln!("Error: {e}"),
 	}
 }
 
@@ -25,7 +25,7 @@ fn repl(e: &mut Lenv) -> Result<()> {
 	println!("Use exit(), Ctrl-C, or Ctrl-D to exit prompt");
 	debug!("Debug mode enabled");
 
-	let mut rl = Editor::<()>::new();
+	let mut rl = DefaultEditor::new()?;
 	if rl.load_history("./.blispr-history.txt").is_err() {
 		println!("No history found.");
 	}
@@ -35,7 +35,7 @@ fn repl(e: &mut Lenv) -> Result<()> {
 
 		match input {
 			Ok(line) => {
-				rl.add_history_entry(&line); // .as_ref()
+				rl.add_history_entry(&line)?; // .as_ref()
 							 // if eval_str is an error, we want to catch it here, inside the loop, but still show the next prompt
 							 // just using ? would bubble it up to main()
 				print_eval_result(eval_str(e, &line));
@@ -49,7 +49,7 @@ fn repl(e: &mut Lenv) -> Result<()> {
 				break;
 			},
 			Err(err) => {
-				warn!("Error: {:?}", err);
+				warn!("Error: {err:?}");
 				break;
 			},
 		}
